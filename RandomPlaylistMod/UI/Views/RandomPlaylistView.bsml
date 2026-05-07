@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vertical child-control-height='false'>
+    <horizontal>
+        <text text="Random Playlist Mod" font-size="8" align="Center"/>
+    </horizontal>
+
+    <vertical spacing="5">
+        <horizontal>
+            <text text="Duration (minutes)" font-size="5"/>
+            <increment-setting value="selected-duration" min="15" max="120" increment="15" integer-only="true" pref-width="120"/>
+        </horizontal>
+
+        <vertical>
+            <horizontal>
+                <text text="Playlists" font-size="5"/>
+                <button text="Select All" on-click="select-all" pref-width="80"/>
+                <button text="Deselect All" on-click="deselect-all" pref-width="80"/>
+            </horizontal>
+            <list id="playlist-list" list-data="playlist-data" select-cell="on-playlist-click" pref-height="180" show-scrollbar="true"/>
+            <text text="{selected-info}" font-size="3.5" align="Center"/>
+        </vertical>
+
+        <horizontal spacing="20">
+            <vertical>
+                <text text="Estimated Songs:" font-size="4"/>
+                <text text="{estimated-songs}" font-size="6" align="Center"/>
+            </vertical>
+            <vertical>
+                <text text="Estimated Time:" font-size="4"/>
+                <text text="{estimated-time}" font-size="6" align="Center"/>
+            </vertical>
+        </horizontal>
+
+        <horizontal spacing="10">
+            <button 
+                text="Start Session" 
+                on-click="start-session" 
+                pref-width="150"/>
+            <button 
+                text="End Session" 
+                on-click="end-session"
+                pref-width="150"/>
+        </horizontal>
+    </vertical>
+</vertical>

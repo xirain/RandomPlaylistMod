@@ -1,0 +1,31 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.32002.238
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RandomPlaylistMod", "RandomPlaylistMod\RandomPlaylistMod.csproj", "{A1B2C3D4-E5F6-7890-ABCD-EFGHIJKLMNOP}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RandomPlaylistMod.Tests", "RandomPlaylistMod.Tests\RandomPlaylistMod.Tests.csproj", "{Q1R2S3T4-U5V6-7890-WXYZ-ABCDEFGHIJKL}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A1B2C3D4-E5F6-7890-ABCD-EFGHIJKLMNOP}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-EFGHIJKLMNOP}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-EFGHIJKLMNOP}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-EFGHIJKLMNOP}.Release|Any CPU.Build.0 = Release|Any CPU
+		{Q1R2S3T4-U5V6-7890-WXYZ-ABCDEFGHIJKL}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{Q1R2S3T4-U5V6-7890-WXYZ-ABCDEFGHIJKL}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{Q1R2S3T4-U5V6-7890-WXYZ-ABCDEFGHIJKL}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{Q1R2S3T4-U5V6-7890-WXYZ-ABCDEFGHIJKL}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {12345678-1234-1234-1234-123456789012}
+	EndGlobalSection
+EndGlobal

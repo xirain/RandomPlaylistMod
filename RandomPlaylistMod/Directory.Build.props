@@ -1,0 +1,29 @@
+
+<Project>
+  <PropertyGroup>
+    <PluginId>RandomPlaylistMod</PluginId>
+    <PluginName>RandomPlaylistMod</PluginName>
+    <Authors>Developer</Authors>
+    <Version>1.0.0</Version>
+    <Description>A Beat Saber mod that allows users to set a specific duration and randomly select songs from multiple playlists for continuous play.</Description>
+    <Homepage>https://github.com/example/RandomPlaylistMod</Homepage>
+    <RepositoryUrl>https://github.com/example/RandomPlaylistMod</RepositoryUrl>
+    <IconUrl></IconUrl>
+    <License>MIT</License>
+    <ReleaseNotes>Initial release</ReleaseNotes>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetBeatSaberVersion>1.29.4</TargetBeatSaberVersion>
+    <MinimumBeatSaberVersion>1.25.0</MinimumBeatSaberVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Dependency Include="BSIPA" Version="4.1.4" />
+    <Dependency Include="SiraUtil" Version="3.0.0" />
+    <Dependency Include="SongCore" Version="3.9.3" />
+    <Dependency Include="BeatSaberMarkupLanguage" Version="1.6.3" />
+    <Dependency Include="PlaylistCore" Version="1.1.0" />
+    <Dependency Include="BS_Utils" Version="1.11.0" />
+  </ItemGroup>
+</Project>
