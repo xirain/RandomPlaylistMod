@@ -51,13 +51,17 @@ Beat Saber 随机播放列表模组 — 设定时长，从多个歌单中随机�
 
 ## 构建
 
-需要 .NET Framework 4.8 开发环境，并在 `.csproj` 中将 `BeatSaberDir` 指向你的 Beat Saber 安装目录：
+需要 .NET Framework 4.8 开发环境。
 
-```bash
-dotnet build RandomPlaylistMod/RandomPlaylistMod.csproj -c Release
-```
-
-构建产物位于 `bin/Release/RandomPlaylistMod.dll`。
+1. 打开 `RandomPlaylistMod/RandomPlaylistMod.csproj`，将 `BeatSaberDir` 修改为你本地的 Beat Saber 安装目录：
+   ```xml
+   <BeatSaberDir>F:\paly\BSManager\BSInstances\1.40.8</BeatSaberDir>
+   ```
+2. 执行构建：
+   ```bash
+   dotnet build RandomPlaylistMod/RandomPlaylistMod.csproj -c Release
+   ```
+3. 构建产物位于 `bin/Release/RandomPlaylistMod.dll`
 
 ## 项目结构
 

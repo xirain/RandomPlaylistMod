@@ -51,13 +51,17 @@ A Beat Saber mod that lets you set a target duration and randomly plays songs fr
 
 ## Building
 
-Requires .NET Framework 4.8. Set `BeatSaberDir` in the `.csproj` to your Beat Saber install path:
+Requires .NET Framework 4.8.
 
-```bash
-dotnet build RandomPlaylistMod/RandomPlaylistMod.csproj -c Release
-```
-
-Output: `bin/Release/RandomPlaylistMod.dll`
+1. Open `RandomPlaylistMod/RandomPlaylistMod.csproj` and change `BeatSaberDir` to your local Beat Saber install path:
+   ```xml
+   <BeatSaberDir>F:\paly\BSManager\BSInstances\1.40.8</BeatSaberDir>
+   ```
+2. Build:
+   ```bash
+   dotnet build RandomPlaylistMod/RandomPlaylistMod.csproj -c Release
+   ```
+3. Output: `bin/Release/RandomPlaylistMod.dll`
 
 ## Project Structure
 
