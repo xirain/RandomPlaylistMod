@@ -10,13 +10,21 @@ namespace RandomPlaylistMod.Managers
     {
         private readonly Random _random = new Random();
 
-        public List<SongInfo> SelectSongsForDuration(List<SongInfo> songs, int targetMinutes)
+        public List<SongInfo> SelectSongsForDuration(List<SongInfo> songs, int targetMinutes, int minBPM = 0, int maxBPM = 300)
         {
             if (songs == null || songs.Count == 0)
                 return new List<SongInfo>();
 
+            // BPM 过滤
+            var filtered = songs.Where(s => s.BPM >= minBPM && s.BPM <= maxBPM).ToList();
+            if (filtered.Count == 0)
+            {
+                Plugin.Log.Warn($"SongSelector: No songs in BPM range {minBPM}-{maxBPM}, using all songs");
+                filtered = new List<SongInfo>(songs);
+            }
+
             int targetSeconds = targetMinutes * 60;
-            List<SongInfo> shuffled = ShuffleSongs(songs);
+            List<SongInfo> shuffled = ShuffleSongs(filtered);
             List<SongInfo> selected = new List<SongInfo>();
             int currentDuration = 0;
             string lastAuthor = string.Empty;

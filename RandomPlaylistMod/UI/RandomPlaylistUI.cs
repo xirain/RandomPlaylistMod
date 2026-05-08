@@ -22,6 +22,8 @@ namespace RandomPlaylistMod.UI
         private SongSelector _songSelector;
 
         private int _selectedDuration = 30;
+        private int _minBPM = 0;
+        private int _maxBPM = 300;
         private string _estimatedInfo = "~0 songs | 00:00";
         private string _selectedInfo = "No playlists selected";
         private string _sessionStatus = "";
@@ -38,6 +40,30 @@ namespace RandomPlaylistMod.UI
             set
             {
                 _selectedDuration = value;
+                UpdateEstimates();
+                NotifyPropertyChanged();
+            }
+        }
+
+        [UIValue("min-bpm")]
+        public int MinBPM
+        {
+            get => _minBPM;
+            set
+            {
+                _minBPM = value;
+                UpdateEstimates();
+                NotifyPropertyChanged();
+            }
+        }
+
+        [UIValue("max-bpm")]
+        public int MaxBPM
+        {
+            get => _maxBPM;
+            set
+            {
+                _maxBPM = value;
                 UpdateEstimates();
                 NotifyPropertyChanged();
             }
@@ -140,7 +166,7 @@ namespace RandomPlaylistMod.UI
 
         private IEnumerator SessionUpdateRoutine()
         {
-            var wait = new WaitForSeconds(5f);
+            var wait = new WaitForSeconds(1f);
             while (true)
             {
                 yield return wait;
@@ -216,6 +242,10 @@ namespace RandomPlaylistMod.UI
                 SessionStatus = "Please select at least one playlist!";
                 return;
             }
+
+            // 传递 BPM 范围到 PlaySessionManager
+            _playSessionManager.MinBPM = MinBPM;
+            _playSessionManager.MaxBPM = MaxBPM;
 
             SessionStatus = $"Starting session ({_selectedDuration} min)...";
             _playSessionManager.StartSession(_selectedDuration);
@@ -333,14 +363,16 @@ namespace RandomPlaylistMod.UI
             }
 
             int totalPlayable = selectedPlaylists.Sum(p => p.PlayableSongCount);
-            int totalDuration = selectedPlaylists.Sum(p => p.TotalDuration);
 
-            SelectedInfo = $"{selectedCount} playlists ({totalPlayable} songs)";
+            SelectedInfo = $"{selectedCount} playlists ({totalPlayable} songs) | BPM {MinBPM}-{MaxBPM}";
 
-            var allSongs = _playlistManager.GetSongsFromSelectedPlaylists();
+            // BPM 过滤后估算
+            var allSongs = _playlistManager.GetSongsFromSelectedPlaylists()
+                .Where(s => s.BPM >= MinBPM && s.BPM <= MaxBPM).ToList();
             int estimatedCount = _songSelector.CalculateEstimatedSongCount(allSongs, _selectedDuration);
-            int songCount = Math.Min(estimatedCount, totalPlayable);
+            int songCount = Math.Min(estimatedCount, allSongs.Count);
 
+            int totalDuration = allSongs.Sum(s => s.Duration);
             var timeSpan = TimeSpan.FromSeconds(Math.Min(totalDuration, _selectedDuration * 60));
             EstimatedInfo = $"~{songCount} songs | {timeSpan.Hours:D2}:{timeSpan.Minutes:D2}";
         }

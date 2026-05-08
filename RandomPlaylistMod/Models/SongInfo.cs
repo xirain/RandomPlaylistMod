@@ -9,5 +9,6 @@ namespace RandomPlaylistMod.Models
         public string Key { get; set; }
         public string PlaylistName { get; set; }
         public string LevelId { get; set; }
+        public int BPM { get; set; }
     }
 }

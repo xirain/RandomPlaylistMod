@@ -192,7 +192,8 @@ namespace RandomPlaylistMod.Managers
                                 Author = level.songAuthorName ?? "",
                                 Duration = (int)level.songDuration,
                                 Key = song.Key ?? "",
-                                PlaylistName = selectedInfo.Name
+                                PlaylistName = selectedInfo.Name,
+                                BPM = (int)level.songBPM
                             });
                         }
                         catch (System.Exception ex)

@@ -40,6 +40,10 @@ namespace RandomPlaylistMod.Managers
         public SongInfo CurrentSong => GetCurrentSong();
         public int RemainingSongCount => _currentSongQueue?.Count - _currentSongIndex ?? 0;
 
+        // BPM 筛选范围（由 UI 在 StartSession 前设置）
+        public int MinBPM { get; set; } = 0;
+        public int MaxBPM { get; set; } = 300;
+
         public void Initialize()
         {
             Plugin.Log.Info("PlaySessionManager: Initialized");
@@ -61,7 +65,7 @@ namespace RandomPlaylistMod.Managers
                 return;
             }
 
-            _currentSongQueue = _songSelector.SelectSongsForDuration(allSongs, durationMinutes);
+            _currentSongQueue = _songSelector.SelectSongsForDuration(allSongs, durationMinutes, MinBPM, MaxBPM);
             _currentSongIndex = 0;
 
             if (_currentSongQueue.Count == 0)

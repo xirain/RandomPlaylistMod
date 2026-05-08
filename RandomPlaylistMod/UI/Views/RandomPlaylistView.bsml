@@ -8,6 +8,13 @@
             <button text="End" on-click="end-session" pref-width="70"/>
         </horizontal>
 
+        <horizontal spacing="5">
+            <text text="BPM:" font-size="4"/>
+            <increment-setting value="min-bpm" min="0" max="300" increment="10" integer-only="true" pref-width="60"/>
+            <text text="-" font-size="4"/>
+            <increment-setting value="max-bpm" min="0" max="500" increment="10" integer-only="true" pref-width="60"/>
+        </horizontal>
+
         <text text="{session-status}" font-size="3" align="Center" word-wrap="true"/>
 
         <horizontal spacing="10">
