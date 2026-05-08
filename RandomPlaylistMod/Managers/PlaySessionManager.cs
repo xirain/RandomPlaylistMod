@@ -13,6 +13,7 @@ namespace RandomPlaylistMod.Managers
         private readonly PlaylistManager _playlistManager;
         private readonly SongSelector _songSelector;
         private readonly TimeManager _timeManager;
+        private readonly EnvironmentsListModel _environmentsListModel;
         private PlaySession _currentSession;
         private List<SongInfo> _currentSongQueue;
         private int _currentSongIndex;
@@ -26,11 +27,13 @@ namespace RandomPlaylistMod.Managers
         public PlaySessionManager(
             PlaylistManager playlistManager,
             SongSelector songSelector,
-            TimeManager timeManager)
+            TimeManager timeManager,
+            EnvironmentsListModel environmentsListModel)
         {
             _playlistManager = playlistManager;
             _songSelector = songSelector;
             _timeManager = timeManager;
+            _environmentsListModel = environmentsListModel;
         }
 
         public bool IsSessionActive => _currentSession != null;
@@ -230,40 +233,46 @@ namespace RandomPlaylistMod.Managers
                     return;
                 }
 
-                // 构造 BeatmapKey(levelId, characteristic, difficulty)
+                // 获取 EnvironmentsListModel（通过 Zenject 注入，不能为 null）
+                if (_environmentsListModel == null)
+                {
+                    Plugin.Log.Error("PlaySessionManager: EnvironmentsListModel is null!");
+                    SongFailed?.Invoke(song, "EnvironmentsListModel not found");
+                    AdvanceToNextSong();
+                    PlayNextSong();
+                    return;
+                }
+
                 var beatmapKey = new BeatmapKey(
                     beatmapLevel.levelID,
                     characteristic,
                     difficulty
                 );
 
-                // 从 BeatmapLevel 获取 ColorScheme
                 var colorScheme = beatmapLevel.GetColorScheme(characteristic, difficulty);
-
-                // 获取默认环境设置和模型
                 var overrideEnvironmentSettings = new OverrideEnvironmentSettings();
 
-                // 启动标准关卡
+                // 启动标准关卡（参数顺序匹配 Beat Saber 1.40+ 的 StartStandardLevel 签名）
                 menuTransitionsHelper.StartStandardLevel(
                     "Solo",                             // gameMode
-                    in beatmapKey,                       // beatmapKey (in)
+                    in beatmapKey,                       // beatmapKey
                     beatmapLevel,                        // beatmapLevel
                     overrideEnvironmentSettings,         // overrideEnvironmentSettings
-                    colorScheme,                         // colorScheme
-                    true,                                // colorSchemesSetDefault
-                    colorScheme,                         // colorSchemesSetDefault2
+                    colorScheme,                         // playerOverrideColorScheme
+                    true,                                // playerOverrideLightshowColors
+                    colorScheme,                         // beatmapOverrideColorScheme
                     new GameplayModifiers(),              // gameplayModifiers
                     new PlayerSpecificSettings(),         // playerSpecificSettings
                     null,                                // practiceSettings
-                    null,                                // environmentsListModel
-                    null,                                // backButtonOverride
-                    false,                               // useTestNoteCutSound
-                    false,                               // isTutorial
-                    null,                                // beforeSceneSwitchCallback
-                    null,                                // afterSceneSwitchCallback
+                    _environmentsListModel,              // environmentsListModel
+                    null,                                // backButtonText
+                    false,                               // useTestNoteCutSoundEffects
+                    false,                               // startPaused
+                    null,                                // beforeSceneSwitchToGameplayCallback
+                    null,                                // afterSceneSwitchToGameplayCallback
                     OnLevelCompleted,                    // levelFinishedCallback
-                    null,                                // levelRestartCallback
-                    null                                 // recordingSetupData
+                    null,                                // levelRestartedCallback
+                    null                                 // recordingToolData
                 );
 
                 Plugin.Log.Info($"PlaySessionManager: Level '{song.SongName}' started successfully");
