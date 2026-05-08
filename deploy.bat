@@ -21,7 +21,6 @@ echo Step 2: Building project...
 dotnet build --configuration Release /nologo
 if %errorlevel% neq 0 (
     echo ERROR: Build failed!
-    pause
     exit /b 1
 )
 
@@ -71,4 +70,4 @@ if not exist "F:\paly\BSManager\BSInstances\1.40.8\Plugins\BS_Utils.dll" (
 )
 echo.
 echo Please restart Beat Saber to test.
-pause
+

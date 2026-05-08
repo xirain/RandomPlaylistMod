@@ -43,7 +43,6 @@ namespace RandomPlaylistMod
     {
         public override void InstallBindings()
         {
-            // 只绑定业务逻辑类
             Container.Bind<PlaylistManager>().AsSingle();
             Container.Bind<SongSelector>().AsSingle();
             Container.Bind<TimeManager>().AsSingle();

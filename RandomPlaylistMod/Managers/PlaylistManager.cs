@@ -11,12 +11,24 @@ namespace RandomPlaylistMod.Managers
     public class PlaylistManager
     {
         private readonly List<PlaylistInfo> _playlists = new List<PlaylistInfo>();
+        private List<SongInfo> _songsCache;
+        private bool _songsCacheDirty = true;
 
         public List<PlaylistInfo> Playlists => _playlists;
+
+        /// <summary>
+        /// 标记歌曲缓存为需要重建
+        /// </summary>
+        private void InvalidateSongsCache()
+        {
+            _songsCacheDirty = true;
+            _songsCache = null;
+        }
 
         public void LoadPlaylists()
         {
             _playlists.Clear();
+            InvalidateSongsCache();
 
             try
             {
@@ -103,6 +115,7 @@ namespace RandomPlaylistMod.Managers
             if (playlist != null)
             {
                 playlist.Selected = !playlist.Selected;
+                InvalidateSongsCache();
                 Plugin.Log.Info($"PlaylistManager: Toggled playlist '{playlist.Name}' to {playlist.Selected}");
             }
         }
@@ -113,6 +126,7 @@ namespace RandomPlaylistMod.Managers
             {
                 playlist.Selected = true;
             }
+            InvalidateSongsCache();
         }
 
         public void DeselectAllPlaylists()
@@ -121,6 +135,7 @@ namespace RandomPlaylistMod.Managers
             {
                 playlist.Selected = false;
             }
+            InvalidateSongsCache();
         }
 
         public List<PlaylistInfo> GetSelectedPlaylists()
@@ -129,10 +144,14 @@ namespace RandomPlaylistMod.Managers
         }
 
         /// <summary>
-        /// 获取选中播放列表中的所有歌曲（基于SongCore查找）
+        /// 获取选中播放列表中的所有歌曲（带缓存）
         /// </summary>
         public List<SongInfo> GetSongsFromSelectedPlaylists()
         {
+            // 缓存有效时直接返回
+            if (!_songsCacheDirty && _songsCache != null)
+                return _songsCache;
+
             var songs = new List<SongInfo>();
             var selectedPlaylists = GetSelectedPlaylists();
             var seenLevelIds = new HashSet<string>();
@@ -153,7 +172,6 @@ namespace RandomPlaylistMod.Managers
                     {
                         try
                         {
-                            // 通过SongCore查找已安装的关卡
                             string levelId = song.LevelId;
                             if (string.IsNullOrEmpty(levelId) && !string.IsNullOrEmpty(song.Hash))
                             {
@@ -191,6 +209,9 @@ namespace RandomPlaylistMod.Managers
                 Plugin.Log.Error($"PlaylistManager: GetSongsFromSelectedPlaylists error: {ex.Message}");
             }
 
+            // 更新缓存
+            _songsCache = songs;
+            _songsCacheDirty = false;
             return songs;
         }
     }

@@ -29,7 +29,7 @@ namespace RandomPlaylistMod.Tests
         {
             var playlists = new List<PlaylistInfo>
             {
-                new PlaylistInfo { Name = "Test", PlaylistId = "test", Songs = new List<SongInfo>() }
+                new PlaylistInfo { Name = "Test", Id = "test", Songs = new List<SongInfo>() }
             };
 
             var result = _songSelector.GenerateSongQueue(playlists, 30);
@@ -48,7 +48,7 @@ namespace RandomPlaylistMod.Tests
 
             var playlists = new List<PlaylistInfo>
             {
-                new PlaylistInfo { Name = "Test", PlaylistId = "test", Songs = songs }
+                new PlaylistInfo { Name = "Test", Id = "test", Songs = songs }
             };
 
             var result = _songSelector.GenerateSongQueue(playlists, 30);
@@ -68,7 +68,7 @@ namespace RandomPlaylistMod.Tests
 
             var playlists = new List<PlaylistInfo>
             {
-                new PlaylistInfo { Name = "Test", PlaylistId = "test", Songs = songs }
+                new PlaylistInfo { Name = "Test", Id = "test", Songs = songs }
             };
 
             var result = _songSelector.GenerateSongQueue(playlists, 60);
