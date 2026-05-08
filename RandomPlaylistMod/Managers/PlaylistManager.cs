@@ -185,6 +185,41 @@ namespace RandomPlaylistMod.Managers
                             var level = Loader.GetLevelById(levelId);
                             if (level == null) continue;
 
+                            // 获取 BPM（通过反射，避免直接引用 BeatmapLevelSO）
+                            int bpm = 0;
+                            try
+                            {
+                                // 尝试从 beatmapBasicData 获取 BPM
+                                var basicDataProp = level.GetType().GetProperty("beatmapBasicData");
+                                if (basicDataProp != null)
+                                {
+                                    var basicData = basicDataProp.GetValue(level) as System.Collections.IDictionary;
+                                    if (basicData != null)
+                                    {
+                                        foreach (var entry in basicData)
+                                        {
+                                            // entry 是 KeyValuePair<(BeatmapCharacteristicSO, BeatmapDifficulty), BeatmapBasicData>
+                                            var entryType = entry.GetType();
+                                            var valueProp = entryType.GetProperty("Value");
+                                            if (valueProp != null)
+                                            {
+                                                var beatmapBasicData = valueProp.GetValue(entry);
+                                                if (beatmapBasicData != null)
+                                                {
+                                                    var bpmProp = beatmapBasicData.GetType().GetProperty("bpm");
+                                                    if (bpmProp != null)
+                                                    {
+                                                        bpm = (int)(float)(bpmProp.GetValue(beatmapBasicData) ?? 0f);
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            catch { }
+
                             songs.Add(new SongInfo
                             {
                                 LevelId = levelId,
@@ -193,7 +228,7 @@ namespace RandomPlaylistMod.Managers
                                 Duration = (int)level.songDuration,
                                 Key = song.Key ?? "",
                                 PlaylistName = selectedInfo.Name,
-                                BPM = (int)level.songBPM
+                                BPM = bpm
                             });
                         }
                         catch (System.Exception ex)

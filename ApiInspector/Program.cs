@@ -12,15 +12,36 @@ class Program
         try
         {
             var dm = Assembly.LoadFrom(basePath + "DataModels.dll");
+            
+            // 先找到 BeatmapBasicData 类型
+            Type beatmapBasicDataType = null;
             foreach (var t in dm.GetTypes())
             {
-                if (t.Name == "BeatmapLevel" || t.Name == "BeatmapLevelSO" || t.Name == "IBeatmapLevelData" || t.Name == "BeatmapLevelExtensions")
+                if (t.Name == "BeatmapBasicData")
                 {
-                    output.AppendLine($"\n=== {t.FullName} (base: {t.BaseType?.FullName}) ===");
+                    beatmapBasicDataType = t;
+                    output.AppendLine($"\n=== Found: {t.FullName} ===");
+                    output.AppendLine($"Namespace: {t.Namespace}");
+                    output.AppendLine($"BaseType: {t.BaseType?.FullName}");
                     foreach (var p in t.GetProperties(BindingFlags.Public | BindingFlags.Instance))
-                        output.AppendLine($"  Property: {p.PropertyType.Name} {p.Name} ({p.PropertyType.FullName})");
+                        output.AppendLine($"  Property: {p.PropertyType.FullName} {p.Name}");
                     foreach (var m in t.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
-                        output.AppendLine($"  Method: {m.ReturnType.Name} {m.Name}({string.Join(", ", m.GetParameters().Select(pp => pp.ParameterType.Name))})");
+                        output.AppendLine($"  Method: {m.ReturnType.FullName} {m.Name}({string.Join(", ", m.GetParameters().Select(pp => pp.ParameterType.FullName))})");
+                    break;
+                }
+            }
+            
+            if (beatmapBasicDataType == null)
+            {
+                output.AppendLine("\nBeatmapBasicData not found in DataModels.dll");
+                // 尝试在其他 DLL 中查找
+                var bgLib = Assembly.LoadFrom(basePath + "BGLib.UnityExtension.dll");
+                foreach (var t in bgLib.GetTypes())
+                {
+                    if (t.Name.Contains("BeatmapBasicData"))
+                    {
+                        output.AppendLine($"\nFound in BGLib: {t.FullName}");
+                    }
                 }
             }
         }

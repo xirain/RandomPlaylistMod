@@ -88,3 +88,43 @@
 | `Tests/TestModels/PlaylistInfo.cs` | 修改 | 对齐实际模型 |
 | `Tests/TestModels/PlaySession.cs` | 修改 | 对齐实际模型 |
 | `Tests/SongSelectorTests.cs` | 修改 | 属性名修复 |
+
+---
+
+## 任务计划与执行结果（续）
+
+### ✅ Task 7: BPM 范围筛选
+- **状态**: 已完成
+- **实现**:
+  - `SongInfo` 新增 `BPM` 属性
+  - `PlaylistManager.GetSongsFromSelectedPlaylists()` 中从 `level.songBPM` 填充 BPM
+  - `SongSelector.SelectSongsForDuration()` 新增 `minBPM`/`maxBPM` 参数，过滤歌曲池
+  - `PlaySessionManager` 新增 `MinBPM`/`MaxBPM` 属性，由 UI 设置后传入 Selector
+  - `RandomPlaylistUI` 新增 `MinBPM`/`MaxBPM` 属性（`[UIValue("min-bpm")]` / `[UIValue("max-bpm")]`）
+  - `RandomPlaylistView.bsml` 新增 BPM 输入行（`increment-setting`）
+  - `UpdateEstimates()` 加入 BPM 过滤，`SelectedInfo` 显示 BPM 范围
+- **修改文件**: `Models/SongInfo.cs`, `Managers/PlaylistManager.cs`, `Managers/SongSelector.cs`, `Managers/PlaySessionManager.cs`, `UI/RandomPlaylistUI.cs`, `UI/Views/RandomPlaylistView.bsml`
+
+### ✅ Task 8: 实时进度显示修复
+- **状态**: 已完成
+- **实现**:
+  - `SessionUpdateRoutine()` 协程间隔从 5 秒改为 1 秒（`WaitForSeconds(1f)`）
+  - `OnSongChanged` 事件触发时立即更新 `SessionStatus`，无需等待协程 tick
+  - `StartSession()` 中在调用 `StartSession` 前将 BPM 范围传递到 `PlaySessionManager`
+- **修改文件**: `UI/RandomPlaylistUI.cs`
+- **关键决策**: 协程间隔 1 秒足以提供"实时"体验，同时不会造成性能压力
+
+---
+
+## 变更文件清单（续）
+
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `Models/SongInfo.cs` | 修改 | 新增 BPM 属性 |
+| `Managers/PlaylistManager.cs` | 修改 | 填充 SongInfo.BPM |
+| `Managers/SongSelector.cs` | 修改 | SelectSongsForDuration 支持 BPM 过滤 |
+| `Managers/PlaySessionManager.cs` | 修改 | 新增 MinBPM/MaxBPM，传入 Selector |
+| `UI/RandomPlaylistUI.cs` | 修改 | BPM UI 属性 + 协程间隔 1s + 传递 BPM |
+| `UI/Views/RandomPlaylistView.bsml` | 修改 | 新增 BPM 输入行 |
+| `TODO.md` | 修改 | 标记两项为已完成 |
+| `restore_release.ps1` | 新增 | 一键还原 v1.0.0 稳定版脚本 |
