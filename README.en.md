@@ -2,6 +2,8 @@
 
 A Beat Saber mod that lets you set a target duration and randomly plays songs from multiple playlists continuously.
 
+[中文](README.md)
+
 > **Current Status**: v1.0 early release. Core features are functional, but some issues may exist. Improvements will follow — feedback via Issues is welcome.
 
 ## Features
@@ -10,8 +12,9 @@ A Beat Saber mod that lets you set a target duration and randomly plays songs fr
 - **Multi-Playlist Selection**: Check multiple Playlist Manager playlists as your song pool
 - **Smart Randomization**: Fisher-Yates shuffle for true randomness, with automatic song count and duration estimation
 - **Continuous Playback**: Auto-advances to the next song; session ends automatically when time runs out
-- **Live Progress**: Shows current song name, progress (X/Y), and elapsed time during playback
 - **Fault Tolerance**: Skips failed songs automatically without interrupting the session
+
+> See [TODO](TODO.md) for planned features
 
 ## Screenshots
 
