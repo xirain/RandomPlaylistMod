@@ -6,6 +6,16 @@ A Beat Saber mod that lets you set a target duration and randomly plays songs fr
 
 > **Current Status**: v1.0 early release. Core features are functional, but some issues may exist. Improvements will follow — feedback via Issues is welcome.
 
+## Tested Environment
+
+This mod was developed and tested in the following setup:
+
+- **Headset**: Pico 4 Ultra
+- **Streaming**: Pico Streaming Assistant (PC VR streaming)
+- **Game**: Steam version Beat Saber 1.40.8
+
+> If you successfully test it in other environments (Quest / Index / other headsets), please let us know in Issues!
+
 ## Features
 
 - **Duration Setting**: Presets for 30 min / 1 hr / 2 hr, or custom duration (1–120 min)
