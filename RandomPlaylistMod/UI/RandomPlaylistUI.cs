@@ -22,8 +22,8 @@ namespace RandomPlaylistMod.UI
         private SongSelector _songSelector;
 
         private int _selectedDuration = 30;
-        private int _minBPM = 0;
-        private int _maxBPM = 300;
+        private float _minNPS = 0f;
+        private float _maxNPS = 99f;
         private string _estimatedInfo = "~0 songs | 00:00";
         private string _selectedInfo = "No playlists selected";
         private string _sessionStatus = "";
@@ -45,25 +45,25 @@ namespace RandomPlaylistMod.UI
             }
         }
 
-        [UIValue("min-bpm")]
-        public int MinBPM
+        [UIValue("min-nps")]
+        public float MinNPS
         {
-            get => _minBPM;
+            get => _minNPS;
             set
             {
-                _minBPM = value;
+                _minNPS = value;
                 UpdateEstimates();
                 NotifyPropertyChanged();
             }
         }
 
-        [UIValue("max-bpm")]
-        public int MaxBPM
+        [UIValue("max-nps")]
+        public float MaxNPS
         {
-            get => _maxBPM;
+            get => _maxNPS;
             set
             {
-                _maxBPM = value;
+                _maxNPS = value;
                 UpdateEstimates();
                 NotifyPropertyChanged();
             }
@@ -214,6 +214,45 @@ namespace RandomPlaylistMod.UI
             RefreshPlaylistList();
         }
 
+
+        [UIAction("on-duration-change")]
+        public void OnDurationChange(float value)
+        {
+            Plugin.Log.Info($"[DEBUG] on-duration-change triggered! value={value}");
+        }
+
+        [UIAction("nps-any")]
+        public void SetNpsAny()
+        {
+            MinNPS = 0f;
+            MaxNPS = 99f;
+            Plugin.Log.Info("[DEBUG] NPS preset: Any");
+        }
+
+        [UIAction("nps-relax")]
+        public void SetNpsRelax()
+        {
+            MinNPS = 0f;
+            MaxNPS = 6f;
+            Plugin.Log.Info("[DEBUG] NPS preset: <6 (Relax)");
+        }
+
+        [UIAction("nps-mid")]
+        public void SetNpsMid()
+        {
+            MinNPS = 6f;
+            MaxNPS = 9f;
+            Plugin.Log.Info("[DEBUG] NPS preset: 6-9 (Hard/Expert)");
+        }
+
+        [UIAction("nps-fast")]
+        public void SetNpsFast()
+        {
+            MinNPS = 9f;
+            MaxNPS = 99f;
+            Plugin.Log.Info("[DEBUG] NPS preset: 9+ (Expert+)");
+        }
+
         [UIAction("select-all")]
         public void SelectAllPlaylists()
         {
@@ -243,9 +282,9 @@ namespace RandomPlaylistMod.UI
                 return;
             }
 
-            // 传递 BPM 范围到 PlaySessionManager
-            _playSessionManager.MinBPM = MinBPM;
-            _playSessionManager.MaxBPM = MaxBPM;
+            // 传递 NPS 范围到 PlaySessionManager
+            _playSessionManager.MinNPS = MinNPS;
+            _playSessionManager.MaxNPS = MaxNPS;
 
             SessionStatus = $"Starting session ({_selectedDuration} min)...";
             _playSessionManager.StartSession(_selectedDuration);
@@ -364,11 +403,11 @@ namespace RandomPlaylistMod.UI
 
             int totalPlayable = selectedPlaylists.Sum(p => p.PlayableSongCount);
 
-            SelectedInfo = $"{selectedCount} playlists ({totalPlayable} songs) | BPM {MinBPM}-{MaxBPM}";
+            SelectedInfo = $"{selectedCount} playlists ({totalPlayable} songs) | NPS {MinNPS:F1}-{MaxNPS:F1}";
 
-            // BPM 过滤后估算
+            // NPS 过滤后估算（NPS<0=未知，始终通过）
             var allSongs = _playlistManager.GetSongsFromSelectedPlaylists()
-                .Where(s => s.BPM >= MinBPM && s.BPM <= MaxBPM).ToList();
+                .Where(s => s.NPS < 0f || (s.NPS >= MinNPS && s.NPS <= MaxNPS)).ToList();
             int estimatedCount = _songSelector.CalculateEstimatedSongCount(allSongs, _selectedDuration);
             int songCount = Math.Min(estimatedCount, allSongs.Count);
 

@@ -1,27 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
-<bg xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:schemaLocation='https://monkeymanboy.github.io/BSML-Docs/ https://raw.githubusercontent.com/monkeymanboy/BSML-Docs/gh-pages/BSMLSchema.xsd'>
-    <vertical child-control-height='true' child-expand-height='false' spacing="1">
-        <horizontal spacing="5">
-            <text text="Min:" font-size="4"/>
-            <increment-setting value="selected-duration" min="15" max="120" increment="15" integer-only="true" pref-width="80"/>
-            <button text="Start" on-click="start-session" pref-width="70"/>
-            <button text="End" on-click="end-session" pref-width="70"/>
-        </horizontal>
+<vertical anchor-pos-x="0" preferred-width="120" child-control-height="false" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="https://monkeymanboy.github.io/BSML-Docs/BSMLSchema.xsd">
+    <vertical child-control-height='true' child-expand-height='false' spacing="4">
 
-        <horizontal spacing="5">
-            <text text="BPM:" font-size="4"/>
-            <increment-setting value="min-bpm" min="0" max="300" increment="10" integer-only="true" pref-width="70"/>
-            <text text="~" font-size="4"/>
-            <increment-setting value="max-bpm" min="0" max="500" increment="10" integer-only="true" pref-width="70"/>
-        </horizontal>
+        <!-- Row 1: Duration + session controls -->
+        <vertical horizontal-fit="Unconstrained" child-control-height="false" child-expand-height="false"
+                  bg="round-rect-panel" bg-color="#00000077" pad="2" pad-left="3" pad-right="3">
+            <horizontal spacing="5">
+                <increment-setting text="Duration" value="selected-duration" min="15" max="120" increment="15" integer-only="true" on-change="on-duration-change"/>
+                <button text="Start" on-click="start-session" pref-width="70"/>
+                <button text="End" on-click="end-session" pref-width="70"/>
+            </horizontal>
+        </vertical>
 
+        <!-- Row 2: NPS filter (Notes Per Second, from SongDetailsCache) -->
+        <vertical horizontal-fit="Unconstrained" child-control-height="false" child-expand-height="false"
+                  bg="round-rect-panel" bg-color="#00000077" pad="2" pad-left="3" pad-right="3">
+            <horizontal>
+                <text text="NPS" font-size="4"/>
+                <button text="Any" on-click="nps-any" pref-width="28"/>
+                <button text="-6" on-click="nps-relax" pref-width="24"/>
+                <button text="6-9" on-click="nps-mid" pref-width="28"/>
+                <button text="9+" on-click="nps-fast" pref-width="22"/>
+            </horizontal>
+        </vertical>
+
+        <!-- Row 3: session status -->
         <text text="{session-status}" font-size="3" align="Center" word-wrap="true"/>
-
         <horizontal spacing="10">
             <text text="{selected-info}" font-size="3" align="Left"/>
             <text text="{estimated-info}" font-size="3" align="Right"/>
         </horizontal>
 
+        <!-- Row 4: playlist header -->
         <horizontal>
             <text text="Playlists" font-size="4"/>
             <button text="All" on-click="select-all" pref-width="40"/>
@@ -30,4 +42,4 @@
 
         <list id="playlist-list" list-style='List' select-cell='on-playlist-click' preferred-height="55" min-height="30"/>
     </vertical>
-</bg>
+</vertical>

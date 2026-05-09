@@ -40,9 +40,9 @@ namespace RandomPlaylistMod.Managers
         public SongInfo CurrentSong => GetCurrentSong();
         public int RemainingSongCount => _currentSongQueue?.Count - _currentSongIndex ?? 0;
 
-        // BPM 筛选范围（由 UI 在 StartSession 前设置）
-        public int MinBPM { get; set; } = 0;
-        public int MaxBPM { get; set; } = 300;
+        // NPS 筛选范围（由 UI 在 StartSession 前设置）
+        public float MinNPS { get; set; } = 0f;
+        public float MaxNPS { get; set; } = 99f;
 
         public void Initialize()
         {
@@ -65,7 +65,7 @@ namespace RandomPlaylistMod.Managers
                 return;
             }
 
-            _currentSongQueue = _songSelector.SelectSongsForDuration(allSongs, durationMinutes, MinBPM, MaxBPM);
+            _currentSongQueue = _songSelector.SelectSongsForDuration(allSongs, durationMinutes, MinNPS, MaxNPS);
             _currentSongIndex = 0;
 
             if (_currentSongQueue.Count == 0)

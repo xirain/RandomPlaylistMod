@@ -7,6 +7,7 @@ A Beat Saber mod that allows users to set a specific duration and randomly selec
 
 - **Duration Settings**: Set custom play session duration (15 minutes, 30 minutes, 1 hour, or custom)
 - **Playlist Selection**: Select multiple playlists to include in your random session
+- **NPS Speed Filter**: Filter songs by Notes Per Second, roughly mapping to Hard/Expert difficulty (powered by SongDetailsCache)
 - **Smart Random Algorithm**: Intelligent song selection that avoids repeating artists consecutively
 - **Seamless Song Switching**: Automatically transitions to the next song when one finishes
 - **Time Management**: Tracks elapsed time and remaining time during sessions

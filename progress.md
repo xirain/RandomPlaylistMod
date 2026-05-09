@@ -128,3 +128,99 @@
 | `UI/Views/RandomPlaylistView.bsml` | 修改 | 新增 BPM 输入行 |
 | `TODO.md` | 修改 | 标记两项为已完成 |
 | `restore_release.ps1` | 新增 | 一键还原 v1.0.0 稳定版脚本 |
+
+---
+
+## 任务计划与执行结果（续 2）
+
+### ✅ Task 9: 修复 BPM 获取方式（编译错误修复）
+- **状态**: 已完成
+- **问题**: `BeatmapLevel` 没有 `songBPM` 或 `bpm` 属性，导致编译错误 CS1061
+- **原因**: `BeatmapLevel` 和 `BeatmapLevelSO` 是不同类，无继承关系；`BeatmapLevelSO.beatsPerMinute` 在 `DataModels.dll` 中但需引用 `BGLib.UnityExtension.dll`
+- **实现**:
+  - 使用反射从 `BeatmapLevel.beatmapBasicData` 获取 `BeatmapBasicData`
+  - 通过反射访问 `BeatmapBasicData.bpm` 属性（若存在）
+  - 避免直接引用 `BeatmapLevelSO` 类型，防止编译错误
+  - 若反射失败，BPM 默认为 0（不影响非 BPM 筛选场景）
+- **修改文件**: `Managers/PlaylistManager.cs`
+- **关键决策**: 使用反射而非直接类型引用，确保项目编译通过；BPM 获取失败时静默忽略，保证健壮性
+
+---
+
+## 变更文件清单（续 2）
+
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `Managers/PlaylistManager.cs` | 修改 | 使用反射获取 BPM，修复编译错误 |
+| `ApiInspector/Program.cs` | 修改 | 更新 API 检查工具，用于排查类型属性 |
+
+---
+
+## 任务计划与执行结果（续 3）
+
+### 🔧 Task 10: UI 布局修复 + 游戏内状态 HUD（进行中）
+
+- **问题 1**: BPM increment-setting 控件在 VR 中无法操作 — 标签文字与 +/- 按钮距离过远，pointer 无法指向按钮区域
+- **问题 2**: 会话状态仅在菜单设置页可见，游戏中看不到当前第几手歌曲名
+
+#### 根因分析
+
+**问题 1 根因**:
+- BSML `increment-setting` 内部克隆自 `FormattedFloatListSettingsController`（VR Rendering Scale 控件），其 `LayoutElement.preferredWidth` 默认 90，内部按钮区 `sizeDelta = (40, 0)`
+- `pref-width` 控制的是整个控件宽度，默认 90 过大导致标签和按钮间距远
+- 用户在 VR 中用 pointer 指向按钮区域时，pointer 可能因为 hitbox/间距问题"滑走"
+- `increment-setting` 是专为 Beat Saber 内建设置页面设计的窄控件，在 mod 设置面板中布局不同导致交互问题
+
+**问题 2 根因**:
+- 当前 `RandomPlaylistUI` 只在菜单的 `FlowCoordinator` 中显示，游戏开始打歌后切到 `GameplayCore` 场景，菜单 UI 完全不可见
+- 项目没有 `Location.Game` 安装器，没有任何组件注入到游戏关卡场景
+
+#### 参考方案
+
+- **CustomSabersLite (qqrz997)**: 使用 `toggleable-slider`（slider + toggle 组合），所有设置都带 `apply-on-change`、`bind-values`，控件自适应宽度。关键：**slider-setting 比 increment-setting 更适合 VR 交互**，因为它有明确的滑块轨道，pointer 可以精确操作
+- **Enhancements (Auros)**: 游戏内 HUD 通过以下架构实现：
+  1. `XGameInstaller` 使用 `SiraUtil` 的 `Location.Game` 注入
+  2. `BasicClockView` 继承 `BSMLAutomaticViewController`，实现 `IInitializable`
+  3. 通过 `FromNewComponentAsViewController()` 创建 ViewController 自动加入游戏场景
+  4. BSML 文件使用 `<clickable-text>` 显示 HUD 信息
+  5. 使用 `ZFixTextShader` 解决 VR 中文本 Z-fighting 问题
+
+#### 完整方案
+
+**Phase 1: 替换 BPM 控件为 slider-setting**
+- 将 `increment-setting` 替换为 `slider-setting`（滑块控件）
+- `slider-setting` 有明确的滑块轨道，VR pointer 可以精确拖动
+- 支持属性: `value`, `text`, `min`, `max`, `increment`, `apply-on-change`, `bind-values`, `integer-only`
+
+**Phase 2: 新增 GameInstaller + 游戏内 HUD**
+- 新增 `GameInstaller`（使用 `zenjector.Install<Location.Game>`）
+- 新增 `SessionHUDView`（继承 `BSMLAutomaticViewController, IInitializable`）
+- 新增 `session-hud.bsml` 布局文件
+- HUD 显示: `#2/15 歌曲名 | 3min` — 简洁一行，位于屏幕上方
+- 游戏内不需要手动操作 HUD，纯信息展示
+
+**Phase 3: PlaySessionManager 共享状态**
+- `PlaySessionManager` 已绑定为 `AsSingle()` 在 `AppInstaller`，在 App/Menu/Game 三个场景容器中都可访问
+- `SessionHUDView` 注入 `PlaySessionManager`，订阅 `SongChanged`/`SessionEnded` 事件
+- 使用协程每秒更新经过时间
+
+**Phase 4: 注册 BSML 嵌入资源**
+- 将 `session-hud.bsml` 添加到 csproj 的 EmbeddedResource
+
+#### 修改文件清单
+
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `UI/Views/RandomPlaylistView.bsml` | 修改 | increment-setting → slider-setting |
+| `UI/RandomPlaylistUI.cs` | 修改 | 适配 slider-setting 的属性类型 |
+| `Plugin.cs` | 修改 | 新增 GameInstaller 注册 |
+| `UI/SessionHUDView.cs` | 新增 | 游戏内 HUD 视图控制器 |
+| `UI/Views/SessionHudView.bsml` | 新增 | HUD 布局文件 |
+| `RandomPlaylistMod.csproj` | 修改 | 添加 BSML 嵌入资源 |
+| `docs/bsml_troubleshooting.md` | 新增 | BSML 开发避坑指南 |
+
+#### Bug 修复记录
+
+- **SessionHudView.bsml Invalid BSML**: .bsml 文件缺少 `<bg>` 根元素和 XML 声明，只有裸 `<text>` 标签 → 补充完整 XML 结构
+- **integer-only 属性误判**: 曾尝试移除 `integer-only="true"` 来修 Invalid BSML，但经查官方文档确认该属性合法 → 恢复。实际 Invalid BSML 根因是 SessionHudView.bsml 缺少根元素
+- **font-color 颜色名问题**: `font-color="white"` 改为 `font-color="#FFFFFF"` 十六进制格式更安全

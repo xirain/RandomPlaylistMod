@@ -5,6 +5,8 @@ using BeatSaberPlaylistsLib;
 using BeatSaberPlaylistsLib.Types;
 using RandomPlaylistMod.Models;
 using SongCore;
+using SongDetailsCache;
+using SongDetailsCache.Structs;
 
 namespace RandomPlaylistMod.Managers
 {
@@ -13,6 +15,17 @@ namespace RandomPlaylistMod.Managers
         private readonly List<PlaylistInfo> _playlists = new List<PlaylistInfo>();
         private List<SongInfo> _songsCache;
         private bool _songsCacheDirty = true;
+        private static SongDetails _songDetailsCache;
+
+        private static SongDetails GetSongDetails()
+        {
+            if (_songDetailsCache == null)
+            {
+                try { _songDetailsCache = SongDetails.Init().GetAwaiter().GetResult(); }
+                catch { Plugin.Log.Warn("PlaylistManager: Failed to init SongDetailsCache"); }
+            }
+            return _songDetailsCache;
+        }
 
         public List<PlaylistInfo> Playlists => _playlists;
 
@@ -185,11 +198,10 @@ namespace RandomPlaylistMod.Managers
                             var level = Loader.GetLevelById(levelId);
                             if (level == null) continue;
 
-                            // 获取 BPM（通过反射，避免直接引用 BeatmapLevelSO）
+                            // 获取 BPM（通过反射）
                             int bpm = 0;
                             try
                             {
-                                // 尝试从 beatmapBasicData 获取 BPM
                                 var basicDataProp = level.GetType().GetProperty("beatmapBasicData");
                                 if (basicDataProp != null)
                                 {
@@ -198,22 +210,40 @@ namespace RandomPlaylistMod.Managers
                                     {
                                         foreach (var entry in basicData)
                                         {
-                                            // entry 是 KeyValuePair<(BeatmapCharacteristicSO, BeatmapDifficulty), BeatmapBasicData>
                                             var entryType = entry.GetType();
                                             var valueProp = entryType.GetProperty("Value");
-                                            if (valueProp != null)
+                                            if (valueProp == null) continue;
+                                            var bbd = valueProp.GetValue(entry);
+                                            if (bbd == null) continue;
+                                            var bpmProp = bbd.GetType().GetProperty("bpm");
+                                            if (bpmProp != null)
                                             {
-                                                var beatmapBasicData = valueProp.GetValue(entry);
-                                                if (beatmapBasicData != null)
-                                                {
-                                                    var bpmProp = beatmapBasicData.GetType().GetProperty("bpm");
-                                                    if (bpmProp != null)
-                                                    {
-                                                        bpm = (int)(float)(bpmProp.GetValue(beatmapBasicData) ?? 0f);
-                                                        break;
-                                                    }
-                                                }
+                                                bpm = (int)(float)(bpmProp.GetValue(bbd) ?? 0f);
+                                                break;
                                             }
+                                        }
+                                    }
+                                }
+                            }
+                            catch { }
+
+                            // 获取 NPS（从 SongDetailsCache: max(notes/duration) 跨所有难度）
+                            float nps = -1f;
+                            try
+                            {
+                                string hash = levelId;
+                                if (hash.StartsWith("custom_level_"))
+                                    hash = hash.Substring(13);
+                                var sd = GetSongDetails();
+                                if (sd != null && sd.songs.FindByHash(hash, out Song sdcSong))
+                                {
+                                    float dur = (float)sdcSong.songDurationSeconds;
+                                    if (dur > 0f)
+                                    {
+                                        foreach (var diff in sdcSong.difficulties)
+                                        {
+                                            float dnps = diff.notes / dur;
+                                            if (dnps > nps) nps = dnps;
                                         }
                                     }
                                 }
@@ -228,7 +258,8 @@ namespace RandomPlaylistMod.Managers
                                 Duration = (int)level.songDuration,
                                 Key = song.Key ?? "",
                                 PlaylistName = selectedInfo.Name,
-                                BPM = bpm
+                                BPM = bpm,
+                                NPS = nps
                             });
                         }
                         catch (System.Exception ex)
@@ -238,7 +269,9 @@ namespace RandomPlaylistMod.Managers
                     }
                 }
 
-                Plugin.Log.Info($"PlaylistManager: Got {songs.Count} unique songs from {selectedPlaylists.Count} selected playlists");
+                int songsWithNPS = songs.Count(s => s.NPS >= 0f);
+                float avgNPS = songsWithNPS > 0 ? songs.Where(s => s.NPS >= 0).Average(s => s.NPS) : 0f;
+                Plugin.Log.Info($"PlaylistManager: Got {songs.Count} unique songs from {selectedPlaylists.Count} selected playlists ({songsWithNPS} with NPS, avg {avgNPS:F1})");
             }
             catch (System.Exception ex)
             {

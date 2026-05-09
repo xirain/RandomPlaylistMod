@@ -20,6 +20,7 @@ This mod was developed and tested in the following setup:
 
 - **Duration Setting**: Presets for 30 min / 1 hr / 2 hr, or custom duration (1–120 min)
 - **Multi-Playlist Selection**: Check multiple Playlist Manager playlists as your song pool
+- **NPS Speed Filter**: Filter songs by Notes Per Second, roughly mapping to Hard/Expert difficulty (powered by SongDetailsCache)
 - **Smart Randomization**: Fisher-Yates shuffle for true randomness, with automatic song count and duration estimation
 - **Continuous Playback**: Auto-advances to the next song; session ends automatically when time runs out
 - **Fault Tolerance**: Skips failed songs automatically without interrupting the session
@@ -42,6 +43,7 @@ This mod was developed and tested in the following setup:
 | **SongCore 3.9+** | Song data management |
 | **SiraUtil 3.0+** | Core utility library |
 | **BeatSaberMarkupLanguage 1.6+** | UI framework |
+| **SongDetailsCache** | Song metadata cache (NPS data source) |
 
 ### Installation Steps
 
@@ -57,9 +59,10 @@ This mod was developed and tested in the following setup:
 
 1. Click the **MODS** button on the left side of the main menu
 2. Find the **Random Playlist** panel
-3. Select a duration (preset buttons or enter custom minutes)
-4. Check the playlists you want in the playlist list
-5. Click **Start Session** to begin
+3. Select an NPS speed range (Any / -6 / 6-9 / 9+)
+4. Select a duration (preset buttons or enter custom minutes)
+5. Check the playlists you want in the playlist list
+6. Click **Start Session** to begin
 6. Click **End Session** at any time to stop early
 
 ## Building

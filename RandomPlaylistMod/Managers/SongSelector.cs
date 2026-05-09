@@ -10,16 +10,16 @@ namespace RandomPlaylistMod.Managers
     {
         private readonly Random _random = new Random();
 
-        public List<SongInfo> SelectSongsForDuration(List<SongInfo> songs, int targetMinutes, int minBPM = 0, int maxBPM = 300)
+        public List<SongInfo> SelectSongsForDuration(List<SongInfo> songs, int targetMinutes, float minNPS = 0f, float maxNPS = 99f)
         {
             if (songs == null || songs.Count == 0)
                 return new List<SongInfo>();
 
-            // BPM 过滤
-            var filtered = songs.Where(s => s.BPM >= minBPM && s.BPM <= maxBPM).ToList();
+            // NPS 过滤：NPS=-1(未知/未缓存)始终通过，已知NPS按区间筛选
+            var filtered = songs.Where(s => s.NPS < 0f || (s.NPS >= minNPS && s.NPS <= maxNPS)).ToList();
             if (filtered.Count == 0)
             {
-                Plugin.Log.Warn($"SongSelector: No songs in BPM range {minBPM}-{maxBPM}, using all songs");
+                Plugin.Log.Warn($"SongSelector: No songs in NPS range {minNPS:F1}-{maxNPS:F1}, using all songs");
                 filtered = new List<SongInfo>(songs);
             }
 
