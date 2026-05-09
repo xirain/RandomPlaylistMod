@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<bg xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:schemaLocation='https://monkeymanboy.github.io/BSML-Docs/ https://raw.githubusercontent.com/monkeymanboy/BSML-Docs/gh-pages/BSMLSchema.xsd'>
+    <vertical bg="round-rect-panel" bg-color="#000000AA" pad="3" pad-left="5" pad-right="5"
+             horizontal-fit="PreferredSize" child-control-height="false" child-expand-height="false">
+        <text text="~hud-text" align="Center" font-size="4.5" font-color="#FFFFFF"/>
+    </vertical>
+</bg>

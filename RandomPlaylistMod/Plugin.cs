@@ -6,6 +6,7 @@ using IPA;
 using RandomPlaylistMod.Managers;
 using RandomPlaylistMod.UI;
 using SiraUtil.Zenject;
+using System;
 using Zenject;
 using IPALogger = IPA.Logging.Logger;
 
@@ -24,6 +25,7 @@ namespace RandomPlaylistMod
             Log = logger;
             zenjector.Install<AppInstaller>(Location.App);
             zenjector.Install<MenuInstaller>(Location.Menu);
+            zenjector.Install<GameInstaller>(Location.StandardPlayer);
         }
 
         [OnStart]
@@ -67,6 +69,25 @@ namespace RandomPlaylistMod
             Container.BindInterfacesTo<MenuButtonManager>().AsSingle();
             
             Plugin.Log.Info("MenuInstaller: Bindings installed");
+        }
+    }
+
+    /// <summary>
+    /// 游戏场景安装器 — 将 SessionHUDView 注入到游戏关卡场景
+    /// 参考 Enhancements mod 的 XGameInstaller 架构
+    /// </summary>
+    public class GameInstaller : Installer
+    {
+        public override void InstallBindings()
+        {
+            Plugin.Log.Info("GameInstaller: Installing bindings...");
+
+            Container.Bind<SessionHUDView>()
+                .FromNewComponentOnNewGameObject()
+                .AsSingle()
+                .NonLazy();
+
+            Plugin.Log.Info("GameInstaller: Bindings installed");
         }
     }
 }
