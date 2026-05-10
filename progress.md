@@ -224,3 +224,47 @@
 - **SessionHudView.bsml Invalid BSML**: .bsml 文件缺少 `<bg>` 根元素和 XML 声明，只有裸 `<text>` 标签 → 补充完整 XML 结构
 - **integer-only 属性误判**: 曾尝试移除 `integer-only="true"` 来修 Invalid BSML，但经查官方文档确认该属性合法 → 恢复。实际 Invalid BSML 根因是 SessionHudView.bsml 缺少根元素
 - **font-color 颜色名问题**: `font-color="white"` 改为 `font-color="#FFFFFF"` 十六进制格式更安全
+
+---
+
+## 任务计划与执行结果（续 4）
+
+### ✅ Task 11: 修复 No Fail 功能不生效 + BSML 交互问题
+- **状态**: 已完成
+- **问题**:
+  1. `checkbox-setting` 放在 `horizontal` 容器内导致 VR 中无法点击
+  2. 改为 `vertical` 独立行后，下方内容消失
+  3. `NoFailEnabled` 设置后游戏内不生效（仍然失败跳过）
+- **根因分析**:
+  - BSML `checkbox-setting` 与 `horizontal` 布局容器冲突，导致交互区域异常
+  - `GameplayModifiers.noFailOn0Energy` 属性是 `init-only`（CanWrite: False）
+  - 正确的字段名是 `_noFailOn0Energy`（带下划线前缀），代码搜索的是错误名称
+- **实现**:
+  - 将 `checkbox-setting` 改为普通 `button`（VR 交互最稳定）
+  - 添加 `ToggleNoFail()` 方法切换布尔值
+  - 添加 `NoFailButtonText` 属性动态显示 "No Fail: ON/OFF"
+  - 修复 `TryEnableNoFailModifier()`，优先搜索 `_noFailOn0Energy` 字段
+  - 调整 UI padding（`pad="1"`、`pad-left/right="2"`），优化显示
+- **修改文件**: 
+  - `UI/Views/RandomPlaylistView.bsml`
+  - `UI/RandomPlaylistUI.cs`
+  - `Managers/PlaySessionManager.cs`
+  - `docs/BSML_INTERACTION_TROUBLESHOOTING.md`（新增故障排除文档）
+- **关键决策**: 
+  - 放弃 `checkbox-setting`，改用 `button` + 文本绑定（文档推荐的最稳定方案）
+  - 反射设置字段时优先尝试带下划线的私有字段名（Beat Saber 1.40.8 实际结构）
+- **验证步骤**:
+  1. 按钮可以正常点击切换 ON/OFF
+  2. 日志显示 `No Fail enabled via _noFailOn0Energy field`
+  3. 游戏内开启 No Fail 后，能量耗尽不会失败跳过
+
+---
+
+## 变更文件清单（续 3）
+
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `UI/Views/RandomPlaylistView.bsml` | 修改 | checkbox-setting → button，调整 padding |
+| `UI/RandomPlaylistUI.cs` | 修改 | 新增 ToggleNoFail() + NoFailButtonText |
+| `Managers/PlaySessionManager.cs` | 修改 | 修复 TryEnableNoFailModifier 字段名 |
+| `docs/BSML_INTERACTION_TROUBLESHOOTING.md` | 新增 | BSML 交互故障排除文档 |
