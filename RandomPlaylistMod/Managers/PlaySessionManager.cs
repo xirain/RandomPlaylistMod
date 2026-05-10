@@ -316,10 +316,35 @@ namespace RandomPlaylistMod.Managers
         private GameplayModifiers CreateGameplayModifiers()
         {
             var modifiers = new GameplayModifiers();
+            
+            Plugin.Log.Info($"[DEBUG] CreateGameplayModifiers: NoFailEnabled={NoFailEnabled}");
+            
             if (NoFailEnabled)
             {
+                Plugin.Log.Info("[DEBUG] Attempting to enable No Fail...");
                 TryEnableNoFailModifier(modifiers);
+                
+                // 验证是否设置成功
+                try
+                {
+                    var verifyField = typeof(GameplayModifiers).GetField("<noFailOn0Energy>k__BackingField",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                    if (verifyField != null)
+                    {
+                        var value = verifyField.GetValue(modifiers);
+                        Plugin.Log.Info($"[DEBUG] No Fail verification: {value}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Plugin.Log.Warn($"[DEBUG] Verification failed: {ex.Message}");
+                }
             }
+            else
+            {
+                Plugin.Log.Info("[DEBUG] No Fail is disabled, skipping");
+            }
+            
             return modifiers;
         }
 
@@ -327,20 +352,47 @@ namespace RandomPlaylistMod.Managers
         {
             try
             {
+                Plugin.Log.Info("[DEBUG] Trying to enable No Fail...");
+
+                // 方式1: 尝试私有字段 _noFailOn0Energy（Beat Saber 1.40.8 实际字段名）
+                var privateField = typeof(GameplayModifiers).GetField("_noFailOn0Energy",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+                if (privateField != null && privateField.FieldType == typeof(bool))
+                {
+                    privateField.SetValue(modifiers, true);
+                    Plugin.Log.Info("PlaySessionManager: No Fail enabled via _noFailOn0Energy field");
+                    return;
+                }
+
+                // 方式2: 尝试自动属性 backing field
                 var backingField = typeof(GameplayModifiers).GetField("<noFailOn0Energy>k__BackingField",
                     System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
 
                 if (backingField != null)
                 {
                     backingField.SetValue(modifiers, true);
+                    Plugin.Log.Info("PlaySessionManager: No Fail enabled via backing field");
                     return;
                 }
 
-                Plugin.Log.Warn("PlaySessionManager: Could not locate noFailOn0Energy backing field, No Fail may not apply");
+                // 方式3: 尝试公有属性（如果将来版本改为可写）
+                var property = typeof(GameplayModifiers).GetProperty("noFailOn0Energy",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+                
+                if (property != null && property.CanWrite)
+                {
+                    property.SetValue(modifiers, true);
+                    Plugin.Log.Info("PlaySessionManager: No Fail enabled via public property setter");
+                    return;
+                }
+
+                Plugin.Log.Warn("PlaySessionManager: Could not enable No Fail - field/property not found or not writable");
             }
             catch (Exception ex)
             {
                 Plugin.Log.Warn($"PlaySessionManager: Failed to enable No Fail modifier: {ex.Message}");
+                Plugin.Log.Warn($"Stack trace: {ex.StackTrace}");
             }
         }
 

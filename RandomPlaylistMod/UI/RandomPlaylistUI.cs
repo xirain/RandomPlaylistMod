@@ -111,8 +111,12 @@ namespace RandomPlaylistMod.UI
             {
                 _noFailEnabled = value;
                 NotifyPropertyChanged();
+                NotifyPropertyChanged(nameof(NoFailButtonText));
             }
         }
+
+        [UIValue("no-fail-button-text")]
+        public string NoFailButtonText => $"No Fail: {(NoFailEnabled ? "ON" : "OFF")}";
 
         [Inject]
         public void Construct(PlaylistManager playlistManager, PlaySessionManager playSessionManager, SongSelector songSelector)
@@ -238,6 +242,13 @@ namespace RandomPlaylistMod.UI
         {
             Plugin.Log.Info($"[DEBUG] No Fail changed: {value}");
             NoFailEnabled = value;
+        }
+
+        [UIAction("toggle-no-fail")]
+        public void ToggleNoFail()
+        {
+            NoFailEnabled = !NoFailEnabled;
+            Plugin.Log.Info($"[DEBUG] No Fail toggled: {NoFailEnabled}");
         }
 
         [UIAction("nps-any")]
