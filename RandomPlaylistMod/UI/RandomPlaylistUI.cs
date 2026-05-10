@@ -306,7 +306,7 @@ namespace RandomPlaylistMod.UI
             _playSessionManager.MaxNPS = MaxNPS;
             _playSessionManager.NoFailEnabled = NoFailEnabled;
 
-            SessionStatus = $"Starting session ({_selectedDuration} min)...";
+            SessionStatus = $"Starting session ({_selectedDuration} min) | No Fail: {(NoFailEnabled ? "ON" : "OFF")}";
             _playSessionManager.StartSession(new SessionSettings
             {
                 DurationMinutes = _selectedDuration,
