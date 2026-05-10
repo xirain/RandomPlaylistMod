@@ -27,11 +27,12 @@ namespace RandomPlaylistMod.UI
         private string _estimatedInfo = "~0 songs | 00:00";
         private string _selectedInfo = "No playlists selected";
         private string _sessionStatus = "";
+        private bool _noFailEnabled = false;
 
         private Coroutine _sessionUpdateCoroutine;
 
         [UIComponent("playlist-list")]
-        private CustomListTableData _playlistList;
+        private CustomListTableData _playlistList = null;
 
         [UIValue("selected-duration")]
         public int SelectedDuration
@@ -98,6 +99,17 @@ namespace RandomPlaylistMod.UI
             set
             {
                 _sessionStatus = value;
+                NotifyPropertyChanged();
+            }
+        }
+
+        [UIValue("no-fail-enabled")]
+        public bool NoFailEnabled
+        {
+            get => _noFailEnabled;
+            set
+            {
+                _noFailEnabled = value;
                 NotifyPropertyChanged();
             }
         }
@@ -285,9 +297,16 @@ namespace RandomPlaylistMod.UI
             // 传递 NPS 范围到 PlaySessionManager
             _playSessionManager.MinNPS = MinNPS;
             _playSessionManager.MaxNPS = MaxNPS;
+            _playSessionManager.NoFailEnabled = NoFailEnabled;
 
             SessionStatus = $"Starting session ({_selectedDuration} min)...";
-            _playSessionManager.StartSession(_selectedDuration);
+            _playSessionManager.StartSession(new SessionSettings
+            {
+                DurationMinutes = _selectedDuration,
+                MinNps = MinNPS,
+                MaxNps = MaxNPS,
+                NoFailEnabled = NoFailEnabled
+            });
 
             if (_playSessionManager.IsSessionActive)
             {

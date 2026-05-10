@@ -43,6 +43,7 @@ namespace RandomPlaylistMod.Managers
         // NPS 筛选范围（由 UI 在 StartSession 前设置）
         public float MinNPS { get; set; } = 0f;
         public float MaxNPS { get; set; } = 99f;
+        public bool NoFailEnabled { get; set; } = false;
 
         public void Initialize()
         {
@@ -57,6 +58,27 @@ namespace RandomPlaylistMod.Managers
 
         public void StartSession(int durationMinutes)
         {
+            StartSession(new SessionSettings
+            {
+                DurationMinutes = durationMinutes,
+                MinNps = MinNPS,
+                MaxNps = MaxNPS,
+                NoFailEnabled = NoFailEnabled
+            });
+        }
+
+        public void StartSession(SessionSettings settings)
+        {
+            if (settings == null)
+            {
+                Plugin.Log.Warn("PlaySessionManager: Session settings is null");
+                return;
+            }
+
+            MinNPS = settings.MinNps;
+            MaxNPS = settings.MaxNps;
+            NoFailEnabled = settings.NoFailEnabled;
+
             var allSongs = _playlistManager.GetSongsFromSelectedPlaylists();
 
             if (allSongs.Count == 0)
@@ -65,7 +87,7 @@ namespace RandomPlaylistMod.Managers
                 return;
             }
 
-            _currentSongQueue = _songSelector.SelectSongsForDuration(allSongs, durationMinutes, MinNPS, MaxNPS);
+            _currentSongQueue = _songSelector.SelectSongsForDuration(allSongs, settings.DurationMinutes, MinNPS, MaxNPS);
             _currentSongIndex = 0;
 
             if (_currentSongQueue.Count == 0)
@@ -76,13 +98,13 @@ namespace RandomPlaylistMod.Managers
 
             _currentSession = new PlaySession
             {
-                DurationMinutes = durationMinutes,
+                DurationMinutes = settings.DurationMinutes,
                 TotalSongs = _currentSongQueue.Count,
                 StartTime = Time.time
             };
 
             _timeManager.StartTimer();
-            Plugin.Log.Info($"PlaySessionManager: Session started - {durationMinutes} min, {_currentSongQueue.Count} songs");
+            Plugin.Log.Info($"PlaySessionManager: Session started - {settings.DurationMinutes} min, {_currentSongQueue.Count} songs, no-fail={NoFailEnabled}");
 
             SessionStarted?.Invoke(_currentSession);
             PlayNextSong();
@@ -265,7 +287,7 @@ namespace RandomPlaylistMod.Managers
                     colorScheme,                         // playerOverrideColorScheme
                     true,                                // playerOverrideLightshowColors
                     colorScheme,                         // beatmapOverrideColorScheme
-                    new GameplayModifiers(),              // gameplayModifiers
+                    CreateGameplayModifiers(),            // gameplayModifiers
                     new PlayerSpecificSettings(),         // playerSpecificSettings
                     null,                                // practiceSettings
                     _environmentsListModel,              // environmentsListModel
@@ -288,6 +310,37 @@ namespace RandomPlaylistMod.Managers
                 SongFailed?.Invoke(song, ex.Message);
                 AdvanceToNextSong();
                 PlayNextSong();
+            }
+        }
+
+        private GameplayModifiers CreateGameplayModifiers()
+        {
+            var modifiers = new GameplayModifiers();
+            if (NoFailEnabled)
+            {
+                TryEnableNoFailModifier(modifiers);
+            }
+            return modifiers;
+        }
+
+        private void TryEnableNoFailModifier(GameplayModifiers modifiers)
+        {
+            try
+            {
+                var backingField = typeof(GameplayModifiers).GetField("<noFailOn0Energy>k__BackingField",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+                if (backingField != null)
+                {
+                    backingField.SetValue(modifiers, true);
+                    return;
+                }
+
+                Plugin.Log.Warn("PlaySessionManager: Could not locate noFailOn0Energy backing field, No Fail may not apply");
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.Warn($"PlaySessionManager: Failed to enable No Fail modifier: {ex.Message}");
             }
         }
 
