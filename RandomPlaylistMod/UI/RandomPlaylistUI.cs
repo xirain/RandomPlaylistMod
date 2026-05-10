@@ -32,7 +32,7 @@ namespace RandomPlaylistMod.UI
         private Coroutine _sessionUpdateCoroutine;
 
         [UIComponent("playlist-list")]
-        private CustomListTableData _playlistList;
+        private CustomListTableData _playlistList = null;
 
         [UIValue("selected-duration")]
         public int SelectedDuration

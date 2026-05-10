@@ -318,9 +318,30 @@ namespace RandomPlaylistMod.Managers
             var modifiers = new GameplayModifiers();
             if (NoFailEnabled)
             {
-                modifiers.noFailOn0Energy = true;
+                TryEnableNoFailModifier(modifiers);
             }
             return modifiers;
+        }
+
+        private void TryEnableNoFailModifier(GameplayModifiers modifiers)
+        {
+            try
+            {
+                var backingField = typeof(GameplayModifiers).GetField("<noFailOn0Energy>k__BackingField",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+                if (backingField != null)
+                {
+                    backingField.SetValue(modifiers, true);
+                    return;
+                }
+
+                Plugin.Log.Warn("PlaySessionManager: Could not locate noFailOn0Energy backing field, No Fail may not apply");
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.Warn($"PlaySessionManager: Failed to enable No Fail modifier: {ex.Message}");
+            }
         }
 
         /// <summary>
