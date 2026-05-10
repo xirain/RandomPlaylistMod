@@ -233,6 +233,13 @@ namespace RandomPlaylistMod.UI
             Plugin.Log.Info($"[DEBUG] on-duration-change triggered! value={value}");
         }
 
+        [UIAction("on-no-fail-change")]
+        public void OnNoFailChange(bool value)
+        {
+            Plugin.Log.Info($"[DEBUG] No Fail changed: {value}");
+            NoFailEnabled = value;
+        }
+
         [UIAction("nps-any")]
         public void SetNpsAny()
         {

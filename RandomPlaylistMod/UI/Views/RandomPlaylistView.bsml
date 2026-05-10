@@ -31,7 +31,7 @@
                   bg="round-rect-panel" bg-color="#00000077" pad="2" pad-left="3" pad-right="3">
             <horizontal spacing="3">
                 <text text="Gameplay" font-size="4"/>
-                <toggle text="No Fail" value="no-fail-enabled"/>
+                <checkbox-setting text="No Fail" value="no-fail-enabled" apply-on-change="true" on-change="on-no-fail-change"/>
             </horizontal>
         </vertical>
 
