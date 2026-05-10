@@ -4,13 +4,13 @@
     <PluginId>RandomPlaylistMod</PluginId>
     <PluginName>RandomPlaylistMod</PluginName>
     <Authors>Developer</Authors>
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
     <Description>Beat Saber random playlist mod — set duration, filter by NPS, and play continuously from multiple playlists.</Description>
     <Homepage>https://github.com/xirain/RandomPlaylistMod</Homepage>
     <RepositoryUrl>https://github.com/xirain/RandomPlaylistMod</RepositoryUrl>
     <IconUrl></IconUrl>
     <License>MIT</License>
-    <ReleaseNotes>v1.1.0: NPS speed filter + in-game HUD</ReleaseNotes>
+    <ReleaseNotes>v1.2.0: No Fail toggle fix + UI interaction improvements</ReleaseNotes>
   </PropertyGroup>
 
   <PropertyGroup>
