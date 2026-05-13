@@ -29,6 +29,8 @@ namespace RandomPlaylistMod.UI
             var canvas = canvasGo.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 100;
+            
+            
             var scaler = canvasGo.AddComponent<UnityEngine.UI.CanvasScaler>();
             scaler.referenceResolution = new Vector2(1920, 1080);
             scaler.screenMatchMode = UnityEngine.UI.CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
@@ -53,6 +55,10 @@ namespace RandomPlaylistMod.UI
             _text.color = Color.white;
             _text.alignment = TextAlignmentOptions.Center;
             _text.text = "";
+            
+            // 关键修复：VR 中 Z-fighting 导致文本不可见，需要修复 shader
+            FixTextShader(_text);
+
             var textRect = _text.GetComponent<RectTransform>();
             textRect.anchorMin = Vector2.zero;
             textRect.anchorMax = Vector2.one;

@@ -268,3 +268,45 @@
 | `UI/RandomPlaylistUI.cs` | 修改 | 新增 ToggleNoFail() + NoFailButtonText |
 | `Managers/PlaySessionManager.cs` | 修改 | 修复 TryEnableNoFailModifier 字段名 |
 | `docs/BSML_INTERACTION_TROUBLESHOOTING.md` | 新增 | BSML 交互故障排除文档 |
+
+---
+
+## 任务计划与执行结果（续 5）
+
+### ✅ Task 12: 修复难度选择逻辑（NPS 范围匹配）
+- **状态**: 已完成
+- **问题**: `StartLevel()` 中固定选择 `difficulties[0]`（最简单难度），导致 NPS 过滤后播放的是最简单 level，不符合筛选意图
+- **实现**:
+  - 添加 `SelectBestDifficulty()` 方法：通过 `SongDetailsCache` 查询每个难度的 NPS，选择符合 `[MinNPS, MaxNPS]` 范围的最难难度
+  - 若 `SongDetailsCache` 不可用或无匹配难度，fallback 到最高可用难度
+  - 添加 `GetSongDetails()` 静态方法缓存 `SongDetails` 实例
+  - 修改 `StartLevel()` 调用 `SelectBestDifficulty()` 替代 `difficulties[0]`
+- **修改文件**: `Managers/PlaySessionManager.cs`
+- **关键决策**: 优先精确匹配 NPS 范围，fallback 到最高难度保证可用性
+
+---
+
+## 变更文件清单（续 4）
+
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `Managers/PlaySessionManager.cs` | 修改 | 新增 SelectBestDifficulty + GetSongDetails，修复难度选择逻辑 |
+| `UI/SessionHUDView.cs` | 修改 | VR HUD 改为 WorldSpace Canvas，修复编译错误 |
+| `manifest.json` | 修改 | 版本号更新至 1.3.0 |
+| `release-notes-v1.3.0.md` | 新增 | v1.3.0 发布说明 |
+
+---
+
+## 🚀 Release v1.3.0
+
+**发布日期**: 2026-05-13
+
+**变更摘要**:
+- ✅ 智能难度选择：自动选 NPS 范围内的最高难度
+- ✅ VR HUD 修复：ScreenSpaceOverlay → WorldSpace，HUD 在 VR 中可见
+- ✅ 修复 MapDifficulty → BeatmapDifficulty 转换编译错误
+
+**Commit**: `Release v1.3.0`
+**Tag**: `v1.3.0`
+
+

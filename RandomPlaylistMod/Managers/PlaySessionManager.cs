@@ -5,6 +5,8 @@ using RandomPlaylistMod.Models;
 using UnityEngine;
 using Zenject;
 using SongCore;
+using SongDetailsCache;
+using SongDetailsCache.Structs;
 
 namespace RandomPlaylistMod.Managers
 {
@@ -17,6 +19,7 @@ namespace RandomPlaylistMod.Managers
         private PlaySession _currentSession;
         private List<SongInfo> _currentSongQueue;
         private int _currentSongIndex;
+        private static SongDetails _songDetailsCache;
 
         // 事件系统
         public event Action<PlaySession> SessionStarted;
@@ -44,6 +47,73 @@ namespace RandomPlaylistMod.Managers
         public float MinNPS { get; set; } = 0f;
         public float MaxNPS { get; set; } = 99f;
         public bool NoFailEnabled { get; set; } = false;
+
+        private static SongDetails GetSongDetails()
+        {
+            if (_songDetailsCache == null)
+            {
+                try { _songDetailsCache = SongDetails.Init().GetAwaiter().GetResult(); }
+                catch { Plugin.Log.Warn("PlaySessionManager: Failed to init SongDetailsCache"); }
+            }
+            return _songDetailsCache;
+        }
+
+        private BeatmapDifficulty SelectBestDifficulty(BeatmapLevel beatmapLevel, BeatmapCharacteristicSO characteristic, List<BeatmapDifficulty> availableDifficulties)
+        {
+            // 尝试从 SongDetailsCache 获取每个难度的 NPS
+            Dictionary<BeatmapDifficulty, float> difficultyNPS = null;
+
+            try
+            {
+                string hash = beatmapLevel.levelID;
+                if (hash.StartsWith("custom_level_"))
+                    hash = hash.Substring(13);
+
+                var sd = GetSongDetails();
+                if (sd != null && sd.songs.FindByHash(hash, out Song sdcSong))
+                {
+                    float dur = (float)sdcSong.songDurationSeconds;
+                    if (dur > 0f)
+                    {
+                        difficultyNPS = new Dictionary<BeatmapDifficulty, float>();
+                        foreach (var diff in sdcSong.difficulties)
+                        {
+                            // MapDifficulty 可以直接强制转换为 BeatmapDifficulty（值相同）
+                            BeatmapDifficulty beatmapDiff = (BeatmapDifficulty)diff.difficulty;
+                            float dnps = diff.notes / dur;
+                            if (!difficultyNPS.ContainsKey(beatmapDiff) || dnps > difficultyNPS[beatmapDiff])
+                                difficultyNPS[beatmapDiff] = dnps;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.Warn($"PlaySessionManager: Error getting difficulty NPS: {ex.Message}");
+            }
+
+            // 如果有 NPS 数据，找到符合范围的最难难度
+            if (difficultyNPS != null && difficultyNPS.Count > 0)
+            {
+                var matching = availableDifficulties
+                    .Where(d => difficultyNPS.ContainsKey(d) && difficultyNPS[d] >= MinNPS && difficultyNPS[d] <= MaxNPS)
+                    .OrderByDescending(d => (int)d)
+                    .FirstOrDefault();
+
+                if (matching != default)
+                {
+                    Plugin.Log.Info($"PlaySessionManager: Selected difficulty {matching} (NPS {difficultyNPS[matching]:F1})");
+                    return matching;
+                }
+
+                Plugin.Log.Info($"PlaySessionManager: No difficulty in NPS range [{MinNPS:F1}-{MaxNPS:F1}], using hardest available");
+            }
+
+            // fallback：选最高可用难度
+            var fallback = availableDifficulties.OrderByDescending(d => (int)d).First();
+            Plugin.Log.Info($"PlaySessionManager: Selected difficulty {fallback} (fallback to hardest)");
+            return fallback;
+        }
 
         public void Initialize()
         {
@@ -243,8 +313,8 @@ namespace RandomPlaylistMod.Managers
                     return;
                 }
 
-                // 使用第一个可用难度
-                var difficulty = difficulties[0];
+                // 选择合适难度：优先匹配 NPS 范围的最难难度
+                var difficulty = SelectBestDifficulty(beatmapLevel, characteristic, difficulties);
 
                 Plugin.Log.Info($"PlaySessionManager: Launching level '{song.SongName}' difficulty {difficulty} characteristic {characteristic.serializedName}");
 
