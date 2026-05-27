@@ -29,28 +29,36 @@ namespace RandomPlaylistMod.Managers
             int currentDuration = 0;
             string lastAuthor = string.Empty;
 
+            // 第一轮：尽可能凑满目标时长（允许超过）
             foreach (var song in shuffled)
             {
-                if (currentDuration + song.Duration <= targetSeconds)
-                {
-                    if (song.Author != lastAuthor || selected.Count == 0)
-                    {
-                        selected.Add(song);
-                        currentDuration += song.Duration;
-                        lastAuthor = song.Author;
-                    }
-                }
-                else
-                {
-                    var bestFit = FindBestFitSong(shuffled.Except(selected).ToList(), targetSeconds - currentDuration);
-                    if (bestFit != null)
-                    {
-                        selected.Add(bestFit);
-                        break;
-                    }
-                }
+                // 避免连续同一作者
+                if (song.Author == lastAuthor && selected.Count > 0)
+                    continue;
+
+                selected.Add(song);
+                currentDuration += song.Duration;
+                lastAuthor = song.Author;
+
+                // 已经凑够或超过目标时长，停止第一轮
+                if (currentDuration >= targetSeconds)
+                    break;
             }
 
+            // 第二轮：如果还有未选的歌，继续添加（让队列更长，由计时器控制结束）
+            // 这样即使用户设置的时长超过歌曲总时长，也能把所有歌唱完
+            var remaining = shuffled.Except(selected).ToList();
+            foreach (var song in remaining)
+            {
+                if (song.Author == lastAuthor && selected.Count > 0)
+                    continue;
+
+                selected.Add(song);
+                currentDuration += song.Duration;
+                lastAuthor = song.Author;
+            }
+
+            Plugin.Log.Info($"SongSelector: Selected {selected.Count} songs, total duration {currentDuration / 60f:F1} min (target: {targetMinutes} min)");
             return selected;
         }
 

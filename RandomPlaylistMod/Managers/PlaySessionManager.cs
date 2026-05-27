@@ -229,14 +229,14 @@ namespace RandomPlaylistMod.Managers
 
         /// <summary>
         /// 在歌曲完成后推进到下一首歌曲
-        /// 检查会话是否超时，超时则自动结束
+        /// 只有计时器到期才会结束会话；队列耗尽时 PlayNextSong 会自动重新打乱
         /// </summary>
         public void OnSongFinished()
         {
             if (!IsSessionActive)
                 return;
 
-            // 超时检查：如果已超过目标时长，结束会话
+            // 唯一结束条件：计时器到期
             if (_currentSession != null && _timeManager.IsTimeUp(_currentSession.DurationMinutes))
             {
                 Plugin.Log.Info($"PlaySessionManager: Session time is up ({_timeManager.GetElapsedMinutes():F1}/{_currentSession.DurationMinutes} min), ending session");
@@ -244,13 +244,7 @@ namespace RandomPlaylistMod.Managers
                 return;
             }
 
-            if (!HasNextSong())
-            {
-                Plugin.Log.Info("PlaySessionManager: No more songs, session complete");
-                EndSession();
-                return;
-            }
-
+            // 没到期：推进到下一首（队列耗尽时 PlayNextSong 会自动重新打乱）
             AdvanceToNextSong();
             PlayNextSong();
         }
@@ -260,9 +254,21 @@ namespace RandomPlaylistMod.Managers
             var song = GetCurrentSong();
             if (song == null)
             {
-                Plugin.Log.Info("PlaySessionManager: No more songs, session complete");
-                EndSession();
-                return;
+                // 队列耗尽，重新打乱继续播放（计时器是唯一退出条件）
+                if (_currentSongQueue != null && _currentSongQueue.Count > 0)
+                {
+                    Plugin.Log.Info($"PlaySessionManager: Queue exhausted, reshuffling {_currentSongQueue.Count} songs...");
+                    _currentSongQueue = _songSelector.ShuffleSongs(_currentSongQueue);
+                    _currentSongIndex = 0;
+                    song = GetCurrentSong();
+                }
+
+                if (song == null)
+                {
+                    Plugin.Log.Info("PlaySessionManager: No songs available after reshuffle, ending session");
+                    EndSession();
+                    return;
+                }
             }
 
             Plugin.Log.Info($"PlaySessionManager: Playing song '{song.SongName}' by {song.Author} (ID: {song.LevelId})");

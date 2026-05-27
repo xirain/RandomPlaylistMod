@@ -3,7 +3,7 @@
 
 $ErrorActionPreference = "Stop"
 
-$ReleaseVersion = "v1.0.0"
+$ReleaseVersion = "v1.3.1"
 $Repo           = "xirain/RandomPlaylistMod"
 $AssetName      = "RandomPlaylistMod.dll"
 

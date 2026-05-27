@@ -1,15 +1,15 @@
 <#
 .SYNOPSIS
-  RandomPlaylistMod 自动发布脚本
+  RandomPlaylistMod auto-release script
 .DESCRIPTION
-  1. 自动递增 patch 版本号 (manifest.json + csproj)
-  2. 编译 Release DLL
+  1. Auto-increment patch version (manifest.json + csproj)
+  2. Build Release DLL
   3. Git commit + tag + push
-  4. 创建 GitHub Release 并上传 DLL
+  4. Create GitHub Release and upload DLL
 .PARAMETER Message
-  Release 描述信息（可选）
+  Release description (optional)
 .EXAMPLE
-  .\release.ps1 "修复 VR HUD 显示问题"
+  .\release.ps1 "Fix difficulty selection logic"
 #>
 
 param(
@@ -21,25 +21,29 @@ $ProjectRoot = $PSScriptRoot
 $ManifestPath = "$ProjectRoot\RandomPlaylistMod\manifest.json"
 $CsprojPath = "$ProjectRoot\RandomPlaylistMod\RandomPlaylistMod.csproj"
 
-# --- 1. 读取当前版本 ---
-Write-Host "读取当前版本..." -ForegroundColor Cyan
-$manifest = Get-Content $ManifestPath | ConvertFrom-Json
-$oldVersion = $manifest.version
-Write-Host "当前版本: $oldVersion" -ForegroundColor Yellow
+# --- 1. Read current version ---
+Write-Host "Reading current version..." -ForegroundColor Cyan
+$text = Get-Content $ManifestPath -Encoding UTF8 -Raw
+if ($text -notmatch '"version"\s*:\s*"(\d+\.\d+\.\d+)"') {
+    Write-Error "Cannot read version from manifest.json"
+    exit 1
+}
+$oldVersion = $Matches[1]
+Write-Host "Current version: $oldVersion" -ForegroundColor Yellow
 
-# --- 2. 递增 patch 版本 ---
+# --- 2. Increment patch version ---
 $parts = $oldVersion.Split('.')
-if ($parts.Length -ne 3) { Write-Error "版本号格式错误: $oldVersion"; exit 1 }
+if ($parts.Length -ne 3) { Write-Error "Invalid version format: $oldVersion"; exit 1 }
 $parts[2] = ([int]$parts[2] + 1).ToString()
 $newVersion = "$($parts[0]).$($parts[1]).$($parts[2])"
-Write-Host "新版本: $newVersion" -ForegroundColor Green
+Write-Host "New version: $newVersion" -ForegroundColor Green
 
-# --- 3. 更新文件 ---
-Write-Host "更新 manifest.json..." -ForegroundColor Cyan
-$manifest.version = $newVersion
-$manifest | ConvertTo-Json -Compress:$false | Set-Content $ManifestPath -Encoding UTF8
+# --- 3. Update files ---
+Write-Host "Updating manifest.json..." -ForegroundColor Cyan
+$newText = $text -replace '"version"\s*:\s*"\d+\.\d+\.\d+"', "`"version`": `"$newVersion`""
+Set-Content $ManifestPath -Value $newText -Encoding UTF8
 
-Write-Host "更新 RandomPlaylistMod.csproj..." -ForegroundColor Cyan
+Write-Host "Updating RandomPlaylistMod.csproj..." -ForegroundColor Cyan
 $xml = [xml](Get-Content $CsprojPath)
 $versionNode = $xml.SelectSingleNode("//Version")
 if ($versionNode -eq $null) {
@@ -50,14 +54,18 @@ if ($versionNode -eq $null) {
 $versionNode.InnerText = $newVersion
 $xml.Save($CsprojPath)
 
-# --- 4. 编译 ---
-Write-Host "编译 Release..." -ForegroundColor Cyan
+# --- 4. Build ---
+Write-Host "Building Release..." -ForegroundColor Cyan
 dotnet build "$ProjectRoot\RandomPlaylistMod\RandomPlaylistMod.csproj" -c Release
-if ($LASTEXITCODE -ne 0) { Write-Error "编译失败"; exit 1 }
-Write-Host "编译成功!" -ForegroundColor Green
+if ($LASTEXITCODE -ne 0) { Write-Error "Build failed"; exit 1 }
+Write-Host "Build OK!" -ForegroundColor Green
 
 # --- 5. Git commit + tag + push ---
-$commitMsg = if ($Message) { "Release v$newVersion`n`n$Message" } else { "Release v$newVersion" }
+if ($Message) {
+    $commitMsg = "Release v$newVersion`n`n$Message"
+} else {
+    $commitMsg = "Release v$newVersion"
+}
 
 Write-Host "Git commit..." -ForegroundColor Cyan
 git -C $ProjectRoot add $ManifestPath $CsprojPath
@@ -68,26 +76,26 @@ git -C $ProjectRoot tag "v$newVersion"
 
 Write-Host "Git push..." -ForegroundColor Cyan
 git -C $ProjectRoot push origin master --tags
-if ($LASTEXITCODE -ne 0) { Write-Error "Git push 失败"; exit 1 }
+if ($LASTEXITCODE -ne 0) { Write-Error "Git push failed"; exit 1 }
 
-# --- 6. 创建 GitHub Release 并上传 DLL ---
+# --- 6. Create GitHub Release and upload DLL ---
 $dllPath = "$ProjectRoot\RandomPlaylistMod\bin\Release\RandomPlaylistMod.dll"
-$releaseNotes = @"
-## v$newVersion
+if ($Message) {
+    $rn = "## v$newVersion`n`n$Message"
+} else {
+    $rn = "## v$newVersion`n`nBug fixes and improvements."
+}
 
-$(if ($Message) { $Message } else { "Bug fixes and improvements." })
-"@
-
-Write-Host "创建 GitHub Release v$newVersion..." -ForegroundColor Cyan
+Write-Host "Creating GitHub Release v$newVersion..." -ForegroundColor Cyan
 gh -R xirain/RandomPlaylistMod release create "v$newVersion" `
     --title "v$newVersion" `
-    --notes $releaseNotes `
-    $dllPath `
-    $ManifestPath
+    --notes "$rn" `
+    "$dllPath" `
+    "$ManifestPath"
 
-if ($LASTEXITCODE -ne 0) { Write-Error "GitHub Release 创建失败"; exit 1 }
+if ($LASTEXITCODE -ne 0) { Write-Error "GitHub Release failed"; exit 1 }
 
-Write-Host "`n=============================" -ForegroundColor Green
-Write-Host " v$newVersion 发布成功!" -ForegroundColor Green
+Write-Host "=============================" -ForegroundColor Green
+Write-Host " v$newVersion released!" -ForegroundColor Green
 Write-Host " https://github.com/xirain/RandomPlaylistMod/releases/tag/v$newVersion" -ForegroundColor Cyan
-Write-Host "=============================`n" -ForegroundColor Green
+Write-Host "=============================" -ForegroundColor Green

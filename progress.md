@@ -309,4 +309,63 @@
 **Commit**: `Release v1.3.0`
 **Tag**: `v1.3.0`
 
+---
+
+## 任务计划与执行结果（续 5）
+
+### ✅ Task 13: VR HUD 位置与朝向修复
+- **状态**: 已完成
+- **问题**:
+  1. HUD 在头顶正上方，仰头 90° 看导致文字上下翻转
+  2. 字体太小（0.05f = 5cm），远处看不清
+  3. HUD 区域太小（1.5×0.15m），信息显示局促
+- **实现**:
+  - 位置改为**前方 6 米 + 上方 2.5 米**（仰头约 22° 可见，不反）
+  - 字体从 0.05f → **0.18f**（18cm 高，远处清晰）
+  - Canvas 从 1.5×0.15 → **3.0×0.35**（更宽更高）
+  - 提取 `UpdateHudPosition()` 方法，`LateUpdate` 每帧更新位置 + Billboard 朝向
+- **修改文件**: `UI/SessionHudView.cs`
+- **关键决策**: 放到前方偏上而非头顶正上方，避免 90° 仰头导致文字翻转
+
+### ✅ Task 14: 选歌逻辑修复（队列总时长允许超过目标）
+- **状态**: 已完成
+- **问题**: 用户选择 120 分钟，但只有 10 首歌（总时长 ~30 分钟）会话就结束了
+- **根因**: `SelectSongsForDuration` 在总时长超过目标时停止选歌，导致队列歌曲太少
+- **实现**:
+  - 第一轮：凑满目标时长（允许超过），避免连续同一作者
+  - 第二轮：继续添加剩余所有歌曲
+  - 队列总时长可以超过目标，由计时器控制会话结束
+- **修改文件**: `Managers/SongSelector.cs`
+- **关键决策**: 让队列歌曲多于目标时长所需；计时器是会话结束的最终仲裁者
+
+### ✅ Task 15: 队列耗尽时自动重新打乱
+- **状态**: 已完成
+- **问题**: 队列歌曲播放完后即使计时器未到期，会话也立即结束
+- **实现**:
+  - `OnSongFinished()` 中，当 `HasNextSong()` 为 false 但计时器未到期时，重新打乱队列继续播放
+  - `_currentSongQueue = _songSelector.ShuffleSongs(_currentSongQueue); _currentSongIndex = 0;`
+- **修改文件**: `Managers/PlaySessionManager.cs`
+- **关键决策**: 队列耗尽后重新打乱继续播放，适合歌曲总数少于目标时长的场景
+
+---
+
+## 变更文件清单（续 5）
+
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `UI/SessionHudView.cs` | 修改 | HUD 位置修复 + 字体放大 + Canvas 放大 |
+| `Managers/SongSelector.cs` | 修改 | `SelectSongsForDuration` 允许超过目标时长 |
+| `Managers/PlaySessionManager.cs` | 修改 | `OnSongFinished` 队列耗尽时重新打乱 |
+| `Tests/SongSelectorTests.cs` | 修改 | 新增 2 个测试用例 |
+
+---
+
+## 测试记录
+
+### SongSelectorTests 新增用例
+1. `SelectSongsForDuration_SelectsAllSongs_WhenSongsFitWithinTarget` — 验证当歌曲总时长小于目标时所有歌曲都被选中
+2. `SelectSongsForDuration_QueueTotalDurationExceedsTarget` — 验证队列总时长可以超过目标时长
+
+**测试结果**: 编译通过，无错误。
+
 

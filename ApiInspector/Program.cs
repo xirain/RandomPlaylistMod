@@ -11,39 +11,34 @@ class Program
         
         try
         {
-            var dm = Assembly.LoadFrom(basePath + "DataModels.dll");
-            
-            // 先找到 BeatmapBasicData 类型
-            Type beatmapBasicDataType = null;
-            foreach (var t in dm.GetTypes())
+            var bsmlPath = System.IO.Path.Combine(basePath, "..", "..", "Plugins", "BSML.dll");
+            output.AppendLine($"Loading BSML from: {System.IO.Path.GetFullPath(bsmlPath)}");
+            if (!System.IO.File.Exists(System.IO.Path.GetFullPath(bsmlPath)))
             {
-                if (t.Name == "BeatmapBasicData")
-                {
-                    beatmapBasicDataType = t;
-                    output.AppendLine($"\n=== Found: {t.FullName} ===");
-                    output.AppendLine($"Namespace: {t.Namespace}");
-                    output.AppendLine($"BaseType: {t.BaseType?.FullName}");
-                    foreach (var p in t.GetProperties(BindingFlags.Public | BindingFlags.Instance))
-                        output.AppendLine($"  Property: {p.PropertyType.FullName} {p.Name}");
-                    foreach (var m in t.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
-                        output.AppendLine($"  Method: {m.ReturnType.FullName} {m.Name}({string.Join(", ", m.GetParameters().Select(pp => pp.ParameterType.FullName))})");
-                    break;
-                }
+                output.AppendLine("BSML.dll not found!");
             }
-            
-            if (beatmapBasicDataType == null)
+            else
             {
-                output.AppendLine("\nBeatmapBasicData not found in DataModels.dll");
-                // 尝试在其他 DLL 中查找
-                var bgLib = Assembly.LoadFrom(basePath + "BGLib.UnityExtension.dll");
-                foreach (var t in bgLib.GetTypes())
+                var bsml = Assembly.LoadFrom(System.IO.Path.GetFullPath(bsmlPath));
+                foreach (var t in bsml.GetTypes())
                 {
-                    if (t.Name.Contains("BeatmapBasicData"))
+                    if (t.Name.Contains("IncrementSetting") || t.Name == "StringSetting")
                     {
-                        output.AppendLine($"\nFound in BGLib: {t.FullName}");
+                        output.AppendLine($"\n=== {t.FullName} ===");
+                        output.AppendLine($"BaseType: {t.BaseType?.FullName}");
+                        foreach (var f in t.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                            output.AppendLine($"  Field: {f.FieldType.FullName} {f.Name}");
+                        foreach (var p in t.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                            output.AppendLine($"  Property: {p.PropertyType.FullName} {p.Name}");
+                        foreach (var m in t.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                            output.AppendLine($"  Method: {m.ReturnType.FullName} {m.Name}({string.Join(", ", m.GetParameters().Select(pp => pp.ParameterType.Name))})");
                     }
                 }
             }
+        }
+        catch (System.Exception ex)
+        {
+            output.AppendLine($"Error: {ex.Message}");
         }
         catch (ReflectionTypeLoadException ex)
         {

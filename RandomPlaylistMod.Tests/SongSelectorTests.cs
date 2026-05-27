@@ -133,5 +133,39 @@ namespace RandomPlaylistMod.Tests
 
             Assert.IsTrue(isDifferent, "List should be shuffled");
         }
+
+        [Test]
+        public void SelectSongsForDuration_SelectsAllSongs_WhenSongsFitWithinTarget()
+        {
+            // 10 首歌 × 180s = 1800s = 30min，目标 120min
+            // 修复后：应选中所有歌曲（不再在目标时长处截断）
+            var songs = new List<SongInfo>();
+            for (int i = 0; i < 10; i++)
+            {
+                songs.Add(new SongInfo { SongName = $"Song{i}", Author = $"Artist{i}", Duration = 180, Key = $"id{i}" });
+            }
+
+            var result = _songSelector.SelectSongsForDuration(songs, 120);
+
+            Assert.AreEqual(10, result.Count, "应选中所有 10 首歌，而非在目标时长处截断");
+        }
+
+        [Test]
+        public void SelectSongsForDuration_QueueTotalDurationExceedsTarget()
+        {
+            // 5 首歌 × 300s = 1500s = 25min，目标 10min
+            // 修复后：队列总时长应超过目标时长
+            var songs = new List<SongInfo>();
+            for (int i = 0; i < 5; i++)
+            {
+                songs.Add(new SongInfo { SongName = $"Song{i}", Author = $"Artist{i}", Duration = 300, Key = $"id{i}" });
+            }
+
+            var result = _songSelector.SelectSongsForDuration(songs, 10);
+            int totalDuration = result.Sum(s => s.Duration);
+
+            Assert.IsTrue(totalDuration > 10 * 60, "队列总时长应超过目标时长（修复前会在目标处截断）");
+            Assert.AreEqual(5, result.Count, "应选中所有 5 首歌");
+        }
     }
 }
