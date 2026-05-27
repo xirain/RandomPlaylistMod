@@ -368,4 +368,37 @@
 
 **测试结果**: 编译通过，无错误。
 
+---
+
+## 🚀 Release v1.4.0
+
+**发布日期**: 2026-05-27
+
+**变更摘要**:
+- ✅ HUD 显示优化：固定世界坐标，字体放大到 36cm，透明背景
+- ✅ 修复会话提前结束：队列耗尽时自动重新打乱继续播放
+- ✅ 修复选歌逻辑：`SelectSongsForDuration` 允许超过目标时长
+- ✅ 新增 2 个 `SongSelectorTests` 测试用例
+
+**Commit**: `Release v1.4.0`
+**Tag**: `v1.4.0`
+**GitHub Release**: https://github.com/xirain/RandomPlaylistMod/releases/tag/v1.4.0
+
+**修改文件清单**:
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `UI/SessionHudView.cs` | 修改 | HUD 固定位置 + 字体 0.36f + 透明背景 |
+| `Managers/SongSelector.cs` | 修改 | `SelectSongsForDuration` 允许超过目标时长 |
+| `Managers/PlaySessionManager.cs` | 修改 | `OnSongFinished` 队列耗尽时重新打乱 |
+| `Tests/SongSelectorTests.cs` | 修改 | 新增 2 个测试用例 |
+| `manifest.json` | 修改 | 版本号 1.3.1 → 1.4.0 |
+| `RandomPlaylistMod.csproj` | 修改 | 版本号 1.3.1 → 1.4.0 |
+| `progress.md` | 修改 | 更新进度记录 |
+
+---
+
+
+
+
+
 
