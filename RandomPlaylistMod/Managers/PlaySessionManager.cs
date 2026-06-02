@@ -16,6 +16,7 @@ namespace RandomPlaylistMod.Managers
         private readonly SongSelector _songSelector;
         private readonly TimeManager _timeManager;
         private readonly EnvironmentsListModel _environmentsListModel;
+        private readonly System.Random _rng = new System.Random();
         private PlaySession _currentSession;
         private List<SongInfo> _currentSongQueue;
         private int _currentSongIndex;
@@ -92,18 +93,18 @@ namespace RandomPlaylistMod.Managers
                 Plugin.Log.Warn($"PlaySessionManager: Error getting difficulty NPS: {ex.Message}");
             }
 
-            // 如果有 NPS 数据，找到符合范围的最难难度
+            // 如果有 NPS 数据，在符合范围的难度中随机选一个
             if (difficultyNPS != null && difficultyNPS.Count > 0)
             {
                 var matching = availableDifficulties
                     .Where(d => difficultyNPS.ContainsKey(d) && difficultyNPS[d] >= MinNPS && difficultyNPS[d] <= MaxNPS)
-                    .OrderByDescending(d => (int)d)
-                    .FirstOrDefault();
+                    .ToList();
 
-                if (matching != default)
+                if (matching.Count > 0)
                 {
-                    Plugin.Log.Info($"PlaySessionManager: Selected difficulty {matching} (NPS {difficultyNPS[matching]:F1})");
-                    return matching;
+                    var chosen = matching[_rng.Next(matching.Count)];
+                    Plugin.Log.Info($"PlaySessionManager: Selected difficulty {chosen} (NPS {difficultyNPS[chosen]:F1}) from {matching.Count} candidates");
+                    return chosen;
                 }
 
                 Plugin.Log.Info($"PlaySessionManager: No difficulty in NPS range [{MinNPS:F1}-{MaxNPS:F1}], using hardest available");

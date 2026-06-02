@@ -13,6 +13,8 @@ namespace RandomPlaylistMod.UI
         private PlaySessionManager _playSessionManager;
         private Coroutine _updateCoroutine;
         private TextMeshProUGUI _text;
+        private GameObject _hudGo;
+        private Camera _vrCam;
 
         [Inject]
         public void Construct(PlaySessionManager playSessionManager)
@@ -22,48 +24,73 @@ namespace RandomPlaylistMod.UI
 
         private void Start()
         {
-            Plugin.Log.Info("SessionHUDView: Start");
+            Plugin.Log.Info("SessionHUDView: Start - creating VR HUD");
+            StartCoroutine(CreateHudAfterFrame());
+        }
 
-            var canvasGo = new GameObject("RandomPlaylistHUD");
-            canvasGo.transform.SetParent(transform, false);
-            var canvas = canvasGo.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 100;
-            
-            
-            var scaler = canvasGo.AddComponent<UnityEngine.UI.CanvasScaler>();
-            scaler.referenceResolution = new Vector2(1920, 1080);
-            scaler.screenMatchMode = UnityEngine.UI.CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            scaler.matchWidthOrHeight = 0.5f;
+        private IEnumerator CreateHudAfterFrame()
+        {
+            yield return null;
+            CreateHud();
+        }
+
+        private void CreateHud()
+        {
+            _vrCam = FindVRam();
+            if (_vrCam == null)
+            {
+                Plugin.Log.Warn("SessionHUDView: No VR camera found, retrying...");
+                StartCoroutine(RetryFindCamera());
+                return;
+            }
+
+            Plugin.Log.Info($"SessionHUDView: Found VR camera: {_vrCam.name}");
+
+            _hudGo = new GameObject("RandomPlaylistHUD");
+
+            // 初始位置：相机前方 6 米 + 上方 2.5 米（仰头约 22° 可见）
+            UpdateHudPosition();
+
+            // Billboard：让文字正面朝向玩家
+            // TextMeshPro WorldSpace 文字渲染在 +Z 面，LookAt 使 +Z 朝向相机
+            _hudGo.transform.LookAt(_vrCam.transform);
+            // +Z 朝向相机后，文字在 +Z 面，但需要从正面看，所以翻 180°
+            // 这样文字正面朝向玩家
+            _hudGo.transform.Rotate(0, 180, 0);
+
+            var canvas = _hudGo.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
 
             // 半透明黑底
             var bgGo = new GameObject("BG");
-            bgGo.transform.SetParent(canvasGo.transform, false);
+            bgGo.transform.SetParent(_hudGo.transform, false);
             var bg = bgGo.AddComponent<UnityEngine.UI.Image>();
-            bg.color = new Color(0f, 0f, 0f, 0.6f);
+            bg.color = new Color(0f, 0f, 0f, 0f); // 全透明背景
             var bgRect = bgGo.GetComponent<RectTransform>();
-            bgRect.anchorMin = new Vector2(0.5f, 0.9f);
-            bgRect.anchorMax = new Vector2(0.5f, 0.9f);
-            bgRect.pivot = new Vector2(0.5f, 0.5f);
-            bgRect.sizeDelta = new Vector2(800, 60);
+            bgRect.anchorMin = Vector2.zero;
+            bgRect.anchorMax = Vector2.one;
+            bgRect.offsetMin = Vector2.zero;
+            bgRect.offsetMax = Vector2.zero;
 
-            // 白字
+            // Canvas 大小（单位：米）—— 配合大字体
+            var canvasRect = _hudGo.GetComponent<RectTransform>();
+            canvasRect.sizeDelta = new Vector2(6.0f, 0.6f);
+
+            // 白字（0.36 = 36cm 高，远处清晰）
             var textGo = new GameObject("Text");
             textGo.transform.SetParent(bgGo.transform, false);
             _text = textGo.AddComponent<TextMeshProUGUI>();
-            _text.fontSize = 28;
+            _text.fontSize = 0.36f;
             _text.color = Color.white;
             _text.alignment = TextAlignmentOptions.Center;
             _text.text = "";
-            
-            // 关键修复：VR 中 Z-fighting 导致文本不可见，需要修复 shader
-            FixTextShader(_text);
+            _text.material = null;
 
             var textRect = _text.GetComponent<RectTransform>();
             textRect.anchorMin = Vector2.zero;
             textRect.anchorMax = Vector2.one;
-            textRect.offsetMin = new Vector2(10, 0);
-            textRect.offsetMax = new Vector2(-10, 0);
+            textRect.offsetMin = Vector2.zero;
+            textRect.offsetMax = Vector2.zero;
 
             _playSessionManager.SongChanged += OnSongChanged;
             _playSessionManager.SessionEnded += OnSessionEnded;
@@ -74,6 +101,53 @@ namespace RandomPlaylistMod.UI
                 UpdateHudText();
                 StartUpdateCoroutine();
             }
+
+            Plugin.Log.Info("SessionHUDView: HUD created successfully");
+        }
+
+        private void UpdateHudPosition()
+        {
+            if (_hudGo == null || _vrCam == null) return;
+            // 固定在相机前方 6 米 + 上方 2.5 米
+            Vector3 targetPos = _vrCam.transform.position
+                + _vrCam.transform.forward * 6f
+                + Vector3.up * 2.5f;
+            _hudGo.transform.position = targetPos;
+        }
+
+        private IEnumerator RetryFindCamera()
+        {
+            yield return new WaitForSeconds(0.5f);
+            CreateHud();
+        }
+
+        private void LateUpdate()
+        {
+            if (_hudGo == null || _vrCam == null) return;
+
+            // 位置固定不更新（世界空间固定位置，不跟随头部移动）
+            // 只更新朝向，让文字始终可读
+            _hudGo.transform.LookAt(_vrCam.transform);
+            _hudGo.transform.Rotate(0, 180, 0);
+        }
+
+        private Camera FindVRam()
+        {
+            Camera cam = Camera.main;
+            if (cam != null) return cam;
+
+            Camera bestCam = null;
+            foreach (var c in Camera.allCameras)
+            {
+                if (!c.gameObject.activeInHierarchy) continue;
+                if (c.stereoTargetEye != StereoTargetEyeMask.None) return c;
+                bestCam = c;
+            }
+
+            cam = FindObjectOfType<Camera>();
+            if (cam != null) return cam;
+
+            return bestCam;
         }
 
         private void OnDestroy()
@@ -108,6 +182,7 @@ namespace RandomPlaylistMod.UI
         {
             if (_text == null || !_playSessionManager.IsSessionActive) return;
             var session = _playSessionManager.GetCurrentSession();
+            if (session == null) return;
             var currentSong = _playSessionManager.CurrentSong;
             string songName = currentSong?.SongName ?? "—";
             var elapsed = TimeSpan.FromMinutes(session.ElapsedMinutes);

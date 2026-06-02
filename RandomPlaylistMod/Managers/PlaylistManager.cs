@@ -1,4 +1,3 @@
-
 using System.Collections.Generic;
 using System.Linq;
 using BeatSaberPlaylistsLib;
@@ -7,6 +6,7 @@ using RandomPlaylistMod.Models;
 using SongCore;
 using SongDetailsCache;
 using SongDetailsCache.Structs;
+using UnityEngine;
 
 namespace RandomPlaylistMod.Managers
 {
@@ -16,6 +16,11 @@ namespace RandomPlaylistMod.Managers
         private List<SongInfo> _songsCache;
         private bool _songsCacheDirty = true;
         private static SongDetails _songDetailsCache;
+
+        /// <summary>
+        /// 自定义歌曲虚拟播放列表的唯一 ID
+        /// </summary>
+        private const string OfficialLevelsId = "__custom_levels__";
 
         private static SongDetails GetSongDetails()
         {
@@ -109,11 +114,61 @@ namespace RandomPlaylistMod.Managers
                 }
 
                 Plugin.Log.Info($"PlaylistManager: Loaded {_playlists.Count} playlists successfully");
+
+                // 添加自定义歌曲虚拟播放列表
+                AddCustomLevelsPlaylist();
             }
             catch (System.Exception ex)
             {
                 Plugin.Log.Error($"PlaylistManager: Failed to load playlists - {ex.Message}");
                 Plugin.Log.Error($"Stack trace: {ex.StackTrace}");
+            }
+        }
+
+        /// <summary>
+        /// 添加自定义歌曲虚拟播放列表项
+        /// </summary>
+        private void AddCustomLevelsPlaylist()
+        {
+            try
+            {
+                // SongCore 不再提供全局枚举 API，使用 CustomLevels 构建虚拟歌单
+                int customCount = 0;
+                int totalDuration = 0;
+
+                try
+                {
+                    var customLevels = Loader.CustomLevels;
+                    if (customLevels != null)
+                    {
+                        customCount = customLevels.Count;
+                        foreach (var kvp in customLevels)
+                        {
+                            var level = kvp.Value;
+                            if (level != null)
+                                totalDuration += (int)level.songDuration;
+                        }
+                    }
+                }
+                catch { }
+
+                var playlist = new PlaylistInfo
+                {
+                    Id = OfficialLevelsId,
+                    Name = "🎮 所有自定义歌曲",
+                    Author = "Custom Levels",
+                    Selected = false,
+                    SongCount = customCount,
+                    PlayableSongCount = customCount,
+                    TotalDuration = totalDuration
+                };
+
+                _playlists.Add(playlist);
+                Plugin.Log.Info($"PlaylistManager: Added Custom Levels playlist with {customCount} songs ({totalDuration}s)");
+            }
+            catch (System.Exception ex)
+            {
+                Plugin.Log.Error($"PlaylistManager: Failed to add Custom Levels playlist - {ex.Message}");
             }
         }
 
@@ -176,6 +231,13 @@ namespace RandomPlaylistMod.Managers
 
                 foreach (var selectedInfo in selectedPlaylists)
                 {
+                    // 处理自定义歌曲虚拟播放列表
+                    if (selectedInfo.Id == OfficialLevelsId)
+                    {
+                        AddCustomLevelSongs(songs, seenLevelIds);
+                        continue;
+                    }
+
                     var playlist = allPlaylists.FirstOrDefault(p =>
                         (p.Filename ?? p.Title) == selectedInfo.Id);
 
@@ -282,6 +344,78 @@ namespace RandomPlaylistMod.Managers
             _songsCache = songs;
             _songsCacheDirty = false;
             return songs;
+        }
+
+        /// <summary>
+        /// 将自定义歌曲添加到歌曲列表中
+        /// </summary>
+        private void AddCustomLevelSongs(List<SongInfo> songs, HashSet<string> seenLevelIds)
+        {
+            try
+            {
+                // SongCore 不再提供全局枚举 API，仅枚举 CustomLevels
+                var customLevels = Loader.CustomLevels;
+                if (customLevels == null) return;
+
+                int added = 0;
+                foreach (var kvp in customLevels)
+                {
+                    string levelId = kvp.Key;
+                    if (seenLevelIds.Contains(levelId)) continue;
+                    seenLevelIds.Add(levelId);
+
+                    var level = kvp.Value;
+                    if (level == null) continue;
+
+                    // 获取 BPM（通过反射）
+                    int bpm = 0;
+                    try
+                    {
+                        var basicDataProp = level.GetType().GetProperty("beatmapBasicData");
+                        if (basicDataProp != null)
+                        {
+                            var basicData = basicDataProp.GetValue(level) as System.Collections.IDictionary;
+                            if (basicData != null)
+                            {
+                                foreach (var entry in basicData)
+                                {
+                                    var entryType = entry.GetType();
+                                    var valueProp = entryType.GetProperty("Value");
+                                    if (valueProp == null) continue;
+                                    var bbd = valueProp.GetValue(entry);
+                                    if (bbd == null) continue;
+                                    var bpmProp = bbd.GetType().GetProperty("bpm");
+                                    if (bpmProp != null)
+                                    {
+                                        bpm = (int)(float)(bpmProp.GetValue(bbd) ?? 0f);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+
+                    songs.Add(new SongInfo
+                    {
+                        LevelId = levelId,
+                        SongName = level.songName ?? "Unknown",
+                        Author = level.songAuthorName ?? "",
+                        Duration = (int)level.songDuration,
+                        Key = "",
+                        PlaylistName = "自定义歌曲",
+                        BPM = bpm,
+                        NPS = -1f
+                    });
+                    added++;
+                }
+
+                Plugin.Log.Info($"PlaylistManager: Added {added} songs from CustomLevels");
+            }
+            catch (System.Exception ex)
+            {
+                Plugin.Log.Error($"PlaylistManager: Error adding songs - {ex.Message}");
+            }
         }
     }
 }

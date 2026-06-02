@@ -8,7 +8,7 @@
         <vertical horizontal-fit="Unconstrained" child-control-height="false" child-expand-height="false"
                   bg="round-rect-panel" bg-color="#00000077" pad="1" pad-left="2" pad-right="2">
             <horizontal spacing="3">
-                <increment-setting text="Duration" value="selected-duration" min="15" max="120" increment="15" integer-only="true" on-change="on-duration-change"/>
+                <increment-setting text="Duration" value="selected-duration" min="15" max="120" increment="15" integer-only="true" apply-on-change="true" on-change="on-duration-change"/>
                 <button text="Start" on-click="start-session" pref-width="60"/>
                 <button text="End" on-click="end-session" pref-width="60"/>
             </horizontal>

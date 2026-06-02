@@ -234,6 +234,7 @@ namespace RandomPlaylistMod.UI
         [UIAction("on-duration-change")]
         public void OnDurationChange(float value)
         {
+            SelectedDuration = (int)value;
             Plugin.Log.Info($"[DEBUG] on-duration-change triggered! value={value}");
         }
 
