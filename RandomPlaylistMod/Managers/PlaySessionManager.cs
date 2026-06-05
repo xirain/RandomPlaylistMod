@@ -48,6 +48,7 @@ namespace RandomPlaylistMod.Managers
         public float MinNPS { get; set; } = 0f;
         public float MaxNPS { get; set; } = 99f;
         public bool NoFailEnabled { get; set; } = false;
+        public bool HudEnabled { get; set; } = true;
 
         private static SongDetails GetSongDetails()
         {

@@ -36,6 +36,12 @@ namespace RandomPlaylistMod.UI
 
         private void CreateHud()
         {
+            if (_playSessionManager == null || !_playSessionManager.HudEnabled)
+            {
+                Plugin.Log.Info("SessionHUDView: HUD disabled by user setting, skipping creation");
+                return;
+            }
+
             _vrCam = FindVRam();
             if (_vrCam == null)
             {
@@ -186,7 +192,9 @@ namespace RandomPlaylistMod.UI
             var currentSong = _playSessionManager.CurrentSong;
             string songName = currentSong?.SongName ?? "—";
             var elapsed = TimeSpan.FromMinutes(session.ElapsedMinutes);
-            _text.text = $"#{session.CurrentSongIndex + 1}/{session.TotalSongs}  {songName}  |  {elapsed.Minutes:D2}:{elapsed.Seconds:D2}";
+            // 用 TotalMinutes 截断到整分钟，避免 elapsed.Minutes 在 >= 60 分钟时只返回余数（0-59）导致显示从0重新开始
+            int totalMinutes = (int)elapsed.TotalMinutes;
+            _text.text = $"#{session.CurrentSongIndex + 1}/{session.TotalSongs}  {songName}  |  {totalMinutes:D2}:{elapsed.Seconds:D2} 分钟";
         }
 
         private void StartUpdateCoroutine()

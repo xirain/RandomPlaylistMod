@@ -32,6 +32,7 @@
             <horizontal spacing="3">
                 <text text="Gameplay" font-size="4"/>
                 <button text="~no-fail-button-text" on-click="toggle-no-fail" pref-width="55"/>
+                <button text="~hud-button-text" on-click="toggle-hud" pref-width="55"/>
             </horizontal>
         </vertical>
 

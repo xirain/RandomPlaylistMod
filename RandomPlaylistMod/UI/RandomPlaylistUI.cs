@@ -28,6 +28,7 @@ namespace RandomPlaylistMod.UI
         private string _selectedInfo = "No playlists selected";
         private string _sessionStatus = "";
         private bool _noFailEnabled = false;
+        private bool _hudEnabled = true;
 
         private Coroutine _sessionUpdateCoroutine;
 
@@ -117,6 +118,21 @@ namespace RandomPlaylistMod.UI
 
         [UIValue("no-fail-button-text")]
         public string NoFailButtonText => $"No Fail: {(NoFailEnabled ? "ON" : "OFF")}";
+
+        [UIValue("hud-enabled")]
+        public bool HudEnabled
+        {
+            get => _hudEnabled;
+            set
+            {
+                _hudEnabled = value;
+                NotifyPropertyChanged();
+                NotifyPropertyChanged(nameof(HudButtonText));
+            }
+        }
+
+        [UIValue("hud-button-text")]
+        public string HudButtonText => $"HUD: {(HudEnabled ? "ON" : "OFF")}";
 
         [Inject]
         public void Construct(PlaylistManager playlistManager, PlaySessionManager playSessionManager, SongSelector songSelector)
@@ -252,6 +268,15 @@ namespace RandomPlaylistMod.UI
             Plugin.Log.Info($"[DEBUG] No Fail toggled: {NoFailEnabled}");
         }
 
+        [UIAction("toggle-hud")]
+        public void ToggleHud()
+        {
+            HudEnabled = !HudEnabled;
+            // 立即同步到 PlaySessionManager，游戏场景中的 HUD 视图会读取这个值
+            _playSessionManager.HudEnabled = HudEnabled;
+            Plugin.Log.Info($"[DEBUG] HUD toggled: {HudEnabled}");
+        }
+
         [UIAction("nps-any")]
         public void SetNpsAny()
         {
@@ -317,6 +342,7 @@ namespace RandomPlaylistMod.UI
             _playSessionManager.MinNPS = MinNPS;
             _playSessionManager.MaxNPS = MaxNPS;
             _playSessionManager.NoFailEnabled = NoFailEnabled;
+            _playSessionManager.HudEnabled = HudEnabled;
 
             SessionStatus = $"Starting session ({_selectedDuration} min) | No Fail: {(NoFailEnabled ? "ON" : "OFF")}";
             _playSessionManager.StartSession(new SessionSettings
