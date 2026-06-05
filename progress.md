@@ -397,6 +397,30 @@
 
 ---
 
+## 🚀 Release v1.5.0
+
+**发布日期**: 2026-06-05
+
+**变更摘要**:
+- ✅ 官方歌曲支持：Beat Saber 官方歌曲作为虚拟播放列表加入可选列表
+- ✅ HUD 世界空间渲染：HUD 固定在 VR 世界中，不再跟随头部
+- ✅ HUD 显示开关：新增 HUD 显示/隐藏切换功能
+- ✅ 修复计时显示问题
+
+**Commit**: `Release v1.5.0: official levels, world-space HUD, HUD toggle, timer fix`
+**Tag**: `v1.5.0`
+**GitHub Release**: https://github.com/xirain/RandomPlaylistMod/releases/tag/v1.5.0
+
+**修改文件清单**:
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `Managers/PlaylistManager.cs` | 修改 | 新增官方歌曲虚拟播放列表 + Loader API 适配 |
+| `UI/SessionHudView.cs` | 修改 | HUD 世界空间渲染 + 显示开关 + 计时修复 |
+| `manifest.json` | 修改 | 版本号 1.4.0 → 1.5.0 |
+| `RandomPlaylistMod.csproj` | 修改 | 版本号 1.4.0 → 1.5.0 |
+
+
+
 
 
 
