@@ -20,7 +20,12 @@ namespace RandomPlaylistMod.Managers
         /// <summary>
         /// 自定义歌曲虚拟播放列表的唯一 ID
         /// </summary>
-        private const string OfficialLevelsId = "__custom_levels__";
+        private const string CustomLevelsId = "__custom_levels__";
+
+        /// <summary>
+        /// 官方歌曲（OST）虚拟播放列表的唯一 ID
+        /// </summary>
+        private const string OfficialLevelsId = "__official_levels__";
 
         private static SongDetails GetSongDetails()
         {
@@ -117,6 +122,9 @@ namespace RandomPlaylistMod.Managers
 
                 // 添加自定义歌曲虚拟播放列表
                 AddCustomLevelsPlaylist();
+
+                // 添加官方歌曲（OST）虚拟播放列表
+                AddOfficialLevelsPlaylist();
             }
             catch (System.Exception ex)
             {
@@ -154,7 +162,7 @@ namespace RandomPlaylistMod.Managers
 
                 var playlist = new PlaylistInfo
                 {
-                    Id = OfficialLevelsId,
+                    Id = CustomLevelsId,
                     Name = "🎮 所有自定义歌曲",
                     Author = "Custom Levels",
                     Selected = false,
@@ -170,6 +178,70 @@ namespace RandomPlaylistMod.Managers
             {
                 Plugin.Log.Error($"PlaylistManager: Failed to add Custom Levels playlist - {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// 添加官方歌曲（OST）虚拟播放列表项
+        /// </summary>
+        private void AddOfficialLevelsPlaylist()
+        {
+            try
+            {
+                // SongCore 3.x 中 Loader.OfficialSongs 是 private static readonly 字段，
+                // 必须用反射读取（OfficialSongEntry 是嵌套类型且字段私有，跨 assembly 无法直接访问）
+                int officialCount = 0;
+                int totalDuration = 0;
+
+                try
+                {
+                    var officialDict = GetOfficialSongsDict();
+                    if (officialDict != null)
+                    {
+                        foreach (System.Collections.DictionaryEntry de in officialDict)
+                        {
+                            string levelId = de.Key as string;
+                            if (string.IsNullOrEmpty(levelId)) continue;
+
+                            // 通过 Loader.GetLevelById 反查 BeatmapLevel（公共 API，支持 official levels）
+                            var level = Loader.GetLevelById(levelId);
+                            if (level != null)
+                            {
+                                officialCount++;
+                                totalDuration += (int)level.songDuration;
+                            }
+                        }
+                    }
+                }
+                catch { }
+
+                var playlist = new PlaylistInfo
+                {
+                    Id = OfficialLevelsId,
+                    Name = "🎼 官方歌曲 (OST)",
+                    Author = "Beat Games",
+                    Selected = false,
+                    SongCount = officialCount,
+                    PlayableSongCount = officialCount,
+                    TotalDuration = totalDuration
+                };
+
+                _playlists.Add(playlist);
+                Plugin.Log.Info($"PlaylistManager: Added Official Levels playlist with {officialCount} songs ({totalDuration}s)");
+            }
+            catch (System.Exception ex)
+            {
+                Plugin.Log.Error($"PlaylistManager: Failed to add Official Levels playlist - {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 通过反射读取 SongCore.Loader.OfficialSongs 私有字段
+        /// </summary>
+        private static System.Collections.IDictionary GetOfficialSongsDict()
+        {
+            var field = typeof(Loader).GetField("OfficialSongs",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+            return field?.GetValue(null) as System.Collections.IDictionary;
         }
 
         public void LoadPlaylistsAsync()
@@ -232,9 +304,16 @@ namespace RandomPlaylistMod.Managers
                 foreach (var selectedInfo in selectedPlaylists)
                 {
                     // 处理自定义歌曲虚拟播放列表
-                    if (selectedInfo.Id == OfficialLevelsId)
+                    if (selectedInfo.Id == CustomLevelsId)
                     {
                         AddCustomLevelSongs(songs, seenLevelIds);
+                        continue;
+                    }
+
+                    // 处理官方歌曲（OST）虚拟播放列表
+                    if (selectedInfo.Id == OfficialLevelsId)
+                    {
+                        AddOfficialLevelSongs(songs, seenLevelIds);
                         continue;
                     }
 
@@ -415,6 +494,51 @@ namespace RandomPlaylistMod.Managers
             catch (System.Exception ex)
             {
                 Plugin.Log.Error($"PlaylistManager: Error adding songs - {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 将官方歌曲（OST）添加到歌曲列表中
+        /// </summary>
+        private void AddOfficialLevelSongs(List<SongInfo> songs, HashSet<string> seenLevelIds)
+        {
+            try
+            {
+                var officialDict = GetOfficialSongsDict();
+                if (officialDict == null) return;
+
+                int added = 0;
+                foreach (System.Collections.DictionaryEntry de in officialDict)
+                {
+                    string levelId = de.Key as string;
+                    if (string.IsNullOrEmpty(levelId)) continue;
+                    if (seenLevelIds.Contains(levelId)) continue;
+                    seenLevelIds.Add(levelId);
+
+                    // 反查 BeatmapLevel（公共 API）
+                    var level = Loader.GetLevelById(levelId);
+                    if (level == null) continue;
+
+                    // 官方歌曲在 SongDetailsCache 中无 hash 记录，NPS 保持 -1（始终通过 NPS 过滤）
+                    songs.Add(new SongInfo
+                    {
+                        LevelId = levelId,
+                        SongName = level.songName ?? "Unknown",
+                        Author = level.songAuthorName ?? "",
+                        Duration = (int)level.songDuration,
+                        Key = "",
+                        PlaylistName = "官方歌曲",
+                        BPM = 0,
+                        NPS = -1f
+                    });
+                    added++;
+                }
+
+                Plugin.Log.Info($"PlaylistManager: Added {added} songs from OfficialSongs");
+            }
+            catch (System.Exception ex)
+            {
+                Plugin.Log.Error($"PlaylistManager: Error adding official songs - {ex.Message}");
             }
         }
     }
