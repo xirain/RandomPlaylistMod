@@ -419,6 +419,28 @@
 | `manifest.json` | 修改 | 版本号 1.4.0 → 1.5.0 |
 | `RandomPlaylistMod.csproj` | 修改 | 版本号 1.4.0 → 1.5.0 |
 
+---
+
+## 🚀 Release v1.6.0
+
+**发布日期**: 2026-06-09
+
+**变更摘要**:
+- ✅ 官方歌曲(OST)虚拟播放列表：正式支持 Beat Saber 官方原声歌曲
+
+**Commit**: `Release v1.6.0: official OST virtual playlist`
+**Tag**: `v1.6.0`
+**GitHub Release**: https://github.com/xirain/RandomPlaylistMod/releases/tag/v1.6.0
+
+**修改文件清单**:
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `Managers/PlaylistManager.cs` | 修改 | 新增官方歌曲(OST)虚拟播放列表 |
+| `manifest.json` | 修改 | 版本号 1.5.0 → 1.6.0 |
+| `RandomPlaylistMod.csproj` | 修改 | 版本号 1.5.0 → 1.6.0 |
+
+
+
 
 
 
