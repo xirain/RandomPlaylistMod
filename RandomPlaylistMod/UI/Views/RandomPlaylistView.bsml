@@ -46,10 +46,11 @@
         <!-- Row 5: playlist header -->
         <horizontal>
             <text text="Playlists" font-size="4"/>
+            <text text="~selected-playlist-count-text" font-size="3" align="Center"/>
             <button text="All" on-click="select-all" pref-width="40"/>
             <button text="None" on-click="deselect-all" pref-width="40"/>
         </horizontal>
 
-        <list id="playlist-list" list-style='List' select-cell='on-playlist-click' preferred-height="55" min-height="30"/>
+        <list id="playlist-list" list-style='List' select-cell='on-playlist-click' preferred-height="65" min-height="40"/>
     </vertical>
 </vertical>

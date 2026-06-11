@@ -93,6 +93,17 @@ namespace RandomPlaylistMod.UI
             }
         }
 
+        [UIValue("selected-playlist-count-text")]
+        public string SelectedPlaylistCountText
+        {
+            get
+            {
+                int total = _playlistManager?.Playlists?.Count ?? 0;
+                int selected = _playlistManager?.GetSelectedPlaylists()?.Count ?? 0;
+                return $"({selected}/{total})";
+            }
+        }
+
         [UIValue("session-status")]
         public string SessionStatus
         {
@@ -372,7 +383,8 @@ namespace RandomPlaylistMod.UI
         }
 
         /// <summary>
-        /// 增量刷新：仅更新指定索引的单元格
+        /// 增量刷新：仅更新指定索引的单元格，保留滚动位置
+        /// 策略：使用 TableView.ReloadDataKeepingPosition() 保持滚动位置
         /// </summary>
         private void RefreshPlaylistCell(int index)
         {
@@ -398,13 +410,14 @@ namespace RandomPlaylistMod.UI
                     null
                 );
 
-                // 仅刷新可见行而非全量 ReloadData
-                _playlistList.TableView.ReloadData();
+                // 使用 ReloadDataKeepingPosition：HMUI 公开 API，刷新数据但保留滚动位置
+                // 避免 ReloadData() 引起的 scrollPosition 重置到 0
+                _playlistList.TableView.ReloadDataKeepingPosition();
             }
         }
 
         /// <summary>
-        /// 全量刷新：重建所有列表数据
+        /// 全量刷新：重建所有列表数据，保留滚动位置
         /// </summary>
         private void RefreshPlaylistList()
         {
@@ -424,6 +437,7 @@ namespace RandomPlaylistMod.UI
 
             Plugin.Log.Info($"RandomPlaylistUI: TableView exists, Data count before clear: {_playlistList.Data?.Count ?? 0}");
 
+            // 保存当前滚动位置（仅在数据量未变化时有效，data 重建用 ReloadDataKeepingPosition）
             _playlistList.Data?.Clear();
 
             if (_playlistManager.Playlists == null)
@@ -449,14 +463,19 @@ namespace RandomPlaylistMod.UI
                 ));
             }
 
-            _playlistList.TableView.ReloadData();
-            Plugin.Log.Info($"RandomPlaylistUI: Refreshed playlist list with {_playlistList.Data.Count} items");
+            // 使用 ReloadDataKeepingPosition：HMUI 公开 API，刷新数据但保留滚动位置
+            _playlistList.TableView.ReloadDataKeepingPosition();
+
+            Plugin.Log.Info($"RandomPlaylistUI: Refreshed playlist list with {_playlistList.Data.Count} items (keeping scroll position)");
         }
 
         private void UpdateEstimates()
         {
             var selectedPlaylists = _playlistManager.GetSelectedPlaylists();
             int selectedCount = selectedPlaylists.Count;
+
+            // 刷新顶部已选数量显示
+            NotifyPropertyChanged(nameof(SelectedPlaylistCountText));
 
             if (selectedCount == 0)
             {
