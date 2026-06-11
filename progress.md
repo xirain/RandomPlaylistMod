@@ -439,6 +439,34 @@
 | `manifest.json` | 修改 | 版本号 1.5.0 → 1.6.0 |
 | `RandomPlaylistMod.csproj` | 修改 | 版本号 1.5.0 → 1.6.0 |
 
+---
+
+## 🚀 Release v1.7.0
+
+**发布日期**: 2026-06-12
+
+**变更摘要**:
+- ✅ 修复歌单选择后列表自动滚动回顶部的问题
+- ✅ 新增已选歌单数量实时显示
+- ✅ 提升歌单列表高度，减少滚动需求
+- ✅ 优化布局，改进选择体验
+
+**Commit**: `Release v1.7.0: UI interaction optimization`
+**Tag**: `v1.7.0`
+**GitHub Release**: https://github.com/xirain/RandomPlaylistMod/releases/tag/v1.7.0
+
+**修改文件清单**:
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `UI/RandomPlaylistUI.cs` | 修改 | 使用 ReloadDataKeepingPosition() 保留滚动位置 + 新增已选数量显示 |
+| `UI/Views/RandomPlaylistView.bsml` | 修改 | 新增已选数量文本组件 + 提升列表高度 |
+| `manifest.json` | 修改 | 版本号 1.6.0 → 1.7.0 |
+| `RandomPlaylistMod.csproj` | 修改 | 版本号 1.6.0 → 1.7.0 |
+
+
+
+
+
 
 
 
