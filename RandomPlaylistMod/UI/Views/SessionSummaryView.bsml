@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<bg>
+    <!-- 外层：不拉伸子元素，用 spacing/pad 避免重叠 -->
+    <vertical
+        pad="28"
+        spacing="6"
+        child-control-height="false"
+        child-expand-height="false"
+        child-control-width="false"
+        child-expand-width="false">
+
+        <!-- 内层主容器：child-control-height=true 让文本元素有可见高度（数据才能显示） -->
+        <vertical child-control-height="true" child-expand-height="false" spacing="6">
+
+            <text
+                text="~summary-title"
+                font-size="5"
+                font-weight="Bold"
+                align="Center"
+            />
+
+            <text
+                text="~session-date"
+                font-size="3.5"
+                align="Center"
+                color="#a0a0a0"
+            />
+
+            <vertical pref-height="16"/>
+
+            <!-- 核心数据：2×2 网格。单元格用 child-control-height=true 保证数值文本有高度 -->
+            <horizontal spacing="16" child-control-height="true">
+                <vertical spacing="2" child-control-height="true">
+                    <text text="Duration" font-size="3" color="#888"/>
+                    <text text="~duration-text" font-size="7" font-weight="Bold" color="#ffd700"/>
+                </vertical>
+                <vertical spacing="2" child-control-height="true">
+                    <text text="Songs Played" font-size="3" color="#888"/>
+                    <text text="~songs-played-text" font-size="7" font-weight="Bold" color="#ffd700"/>
+                </vertical>
+            </horizontal>
+
+            <vertical pref-height="12"/>
+
+            <horizontal spacing="16" child-control-height="true">
+                <vertical spacing="2" child-control-height="true">
+                    <text text="Total Score" font-size="3" color="#888"/>
+                    <text text="~total-score-text" font-size="7" font-weight="Bold" color="#ffd700"/>
+                </vertical>
+                <vertical spacing="2" child-control-height="true">
+                    <text text="Full Combos" font-size="3" color="#888"/>
+                    <text text="~fc-count-text" font-size="7" font-weight="Bold" color="#ffd700"/>
+                </vertical>
+            </horizontal>
+
+            <vertical pref-height="16"/>
+
+            <horizontal spacing="20" child-control-height="true">
+                <text text="Accuracy:" font-size="3.5" color="#aaa"/>
+                <text text="~accuracy-text" font-size="3.5" font-weight="Bold"/>
+            </horizontal>
+            <vertical pref-height="6"/>
+            <horizontal spacing="20" child-control-height="true">
+                <text text="Best Rank:" font-size="3.5" color="#aaa"/>
+                <text text="~best-rank-text" font-size="3.5" font-weight="Bold"/>
+            </horizontal>
+            <vertical pref-height="6"/>
+            <horizontal spacing="20" child-control-height="true">
+                <text text="Playlists:" font-size="3.5" color="#aaa"/>
+                <text text="~playlists-text" font-size="3.5"/>
+            </horizontal>
+
+            <vertical pref-height="24"/>
+
+            <!-- 操作按钮：保留 pref-height 确保按钮有高度、文字可见 -->
+            <button
+                text="Generate Share Image"
+                on-click="generate-share"
+                font-size="4"
+                pref-height="13"
+                pref-width="90"
+            />
+
+            <vertical pref-height="8"/>
+
+            <button
+                text="View History"
+                on-click="view-history"
+                font-size="3.5"
+                pref-height="11"
+                pref-width="90"
+            />
+
+            <vertical pref-height="8"/>
+
+            <text
+                text="~share-status"
+                font-size="3"
+                align="Center"
+                color="#3fb950"
+                active="~visible-share-status"
+            />
+
+            <vertical pref-height="8"/>
+
+            <button
+                text="Close"
+                on-click="close-view"
+                font-size="3"
+                pref-height="10"
+                pref-width="90"
+            />
+
+        </vertical>
+    </vertical>
+</bg>

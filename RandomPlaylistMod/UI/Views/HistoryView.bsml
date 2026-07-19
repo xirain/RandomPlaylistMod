@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<bg>
+    <!-- 外层：不拉伸子元素，用 spacing/pad 避免重叠 -->
+    <vertical
+        pad="28"
+        spacing="6"
+        child-control-height="false"
+        child-expand-height="false"
+        child-control-width="false"
+        child-expand-width="false">
+
+        <!-- 内层主容器：child-control-height=true 让文本元素有可见高度（数据才能显示） -->
+        <vertical child-control-height="true" child-expand-height="false" spacing="6">
+
+            <!-- 标题行 -->
+            <horizontal spacing="12" child-control-height="true">
+                <text
+                    text="Session History"
+                    font-size="6"
+                    font-weight="Bold"
+                    align="Left"
+                />
+                <text
+                    text="~profile-summary-text"
+                    font-size="3"
+                    align="Left"
+                    color="#888"
+                />
+            </horizontal>
+
+            <vertical pref-height="16"/>
+
+            <!-- 玩家档案摘要 -->
+            <horizontal
+                spacing="24"
+                active="~visible-profile"
+                child-control-height="true">
+                <vertical spacing="2" child-control-height="true">
+                    <text text="Total Sessions" font-size="2.5" color="#666"/>
+                    <text text="~profile-sessions" font-size="4" font-weight="Bold" color="#58a6ff"/>
+                </vertical>
+                <vertical spacing="2" child-control-height="true">
+                    <text text="Total Time" font-size="2.5" color="#666"/>
+                    <text text="~profile-time" font-size="4" font-weight="Bold" color="#58a6ff"/>
+                </vertical>
+                <vertical spacing="2" child-control-height="true">
+                    <text text="Streak" font-size="2.5" color="#666"/>
+                    <text text="~profile-streak" font-size="4" font-weight="Bold" color="#ffd700"/>
+                </vertical>
+            </horizontal>
+
+            <vertical pref-height="20"/>
+
+            <!-- 历史列表 -->
+            <text text="~list-header" font-size="3.5" color="#aaa"/>
+            <vertical pref-height="8"/>
+
+            <text
+                text="~history-list-text"
+                font-size="3"
+                color="#ccc"
+            />
+
+            <vertical pref-height="12"/>
+
+            <!-- 选择导航 -->
+            <horizontal spacing="12" child-control-height="true">
+                <button
+                    text="Prev"
+                    on-click="select-prev"
+                    pref-height="9"
+                    pref-width="30"
+                    font-size="3"
+                />
+                <button
+                    text="Next"
+                    on-click="select-next"
+                    pref-height="9"
+                    pref-width="30"
+                    font-size="3"
+                />
+                <text
+                    text="~selection-indicator-text"
+                    font-size="3"
+                    color="#888"
+                />
+            </horizontal>
+
+            <vertical pref-height="20"/>
+
+            <!-- 选中会话的详情 -->
+            <text
+                text="~detail-title-text"
+                font-size="5"
+                font-weight="Bold"
+                active="~visible-detail"
+            />
+
+            <vertical pref-height="8" active="~visible-detail"/>
+
+            <text
+                text="~detail-content-text"
+                font-size="3.5"
+                color="#ccc"
+                active="~visible-detail"
+            />
+
+            <vertical pref-height="16" active="~visible-detail"/>
+
+            <!-- 详情操作按钮 -->
+            <button
+                text="Share This Session"
+                on-click="share-selected"
+                pref-height="12"
+                pref-width="90"
+                font-size="3.5"
+                active="~visible-detail"
+            />
+
+            <vertical pref-height="6" active="~visible-detail"/>
+
+            <button
+                text="Delete This Session"
+                on-click="delete-selected"
+                pref-height="10"
+                pref-width="90"
+                font-size="3"
+                active="~visible-detail"
+            />
+
+            <vertical pref-height="20"/>
+
+            <!-- 底部按钮 -->
+            <button
+                text="Back to Summary"
+                on-click="go-back"
+                pref-height="11"
+                pref-width="90"
+                font-size="3.5"
+            />
+
+            <vertical pref-height="4"/>
+
+            <button
+                text="Close"
+                on-click="close-view"
+                pref-height="10"
+                pref-width="90"
+                font-size="3"
+            />
+
+            <!-- 状态消息 -->
+            <vertical pref-height="8"/>
+            <text
+                text="~status-text"
+                font-size="3"
+                align="Center"
+                color="#ffd700"
+            />
+        </vertical>
+    </vertical>
+</bg>

@@ -49,6 +49,9 @@ namespace RandomPlaylistMod
             Container.Bind<SongSelector>().AsSingle();
             Container.Bind<TimeManager>().AsSingle();
             Container.Bind<PlaySessionManager>().AsSingle();
+            // Phase 2: 数据持久化与分享
+            Container.Bind<HistoryManager>().AsSingle();
+            Container.Bind<ShareImageGenerator>().AsSingle();
         }
     }
 
@@ -60,6 +63,8 @@ namespace RandomPlaylistMod
             
             // UI 类使用 SiraUtil 的特殊方法创建
             Container.Bind<RandomPlaylistUI>().FromNewComponentAsViewController().AsSingle();
+            Container.Bind<SessionSummaryView>().FromNewComponentAsViewController().AsSingle();
+            Container.Bind<HistoryView>().FromNewComponentAsViewController().AsSingle();
             
             // FlowCoordinator 需要在新 GameObject 上创建
             Container.Bind<RandomPlaylistFlowCoordinator>()

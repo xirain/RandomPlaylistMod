@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
+using System.Threading;
 using RandomPlaylistMod.Models;
 using UnityEngine;
 using Zenject;
@@ -15,6 +17,7 @@ namespace RandomPlaylistMod.Managers
         private readonly PlaylistManager _playlistManager;
         private readonly SongSelector _songSelector;
         private readonly TimeManager _timeManager;
+        private readonly HistoryManager _historyManager;
         private readonly EnvironmentsListModel _environmentsListModel;
         private readonly System.Random _rng = new System.Random();
         private PlaySession _currentSession;
@@ -22,7 +25,22 @@ namespace RandomPlaylistMod.Managers
         private int _currentSongIndex;
         private static SongDetails _songDetailsCache;
 
+        // Phase 2: 数据持久化
+        private List<SongResult> _currentResults;      // 本次会话所有歌曲结果
+        private string _currentDifficulty;              // 当前播放的难度名（用于回调提取）
+        private float _currentNPS;                      // 当前播放的 NPS（用于回调提取）
+        private DateTime _sessionStartedAt;              // 会话启动时间
+        private List<string> _playlistNamesSnapshot;    // 启动时的歌单名称快照
+        private List<string> _playlistIdsSnapshot;      // 启动时的歌单ID快照
+        private int _totalSongsInQueueSnapshot;         // 启动时的队列歌曲数
+        private int _availableSongCountSnapshot;        // 启动时的可用歌曲总数
+        private string _currentSongNameForCallback;     // 当前歌曲名（用于回调）
+        private string _currentAuthorForCallback;       // 当前作者名（用于回调）
+        private string _currentLevelIdForCallback;      // 当前关卡ID（用于回调）
+        private int _currentSongDurationForCallback;    // 当前歌曲时长（用于回调）
+
         // 事件系统
+        public event Action<PlaySession, SessionRecord> SessionEndedWithRecord; // 新增：带 SessionRecord 的会话结束事件
         public event Action<PlaySession> SessionStarted;
         public event Action<PlaySession> SessionEnded;
         public event Action<SongInfo, int, int> SongChanged; // song, currentIndex, totalCount
@@ -32,11 +50,13 @@ namespace RandomPlaylistMod.Managers
             PlaylistManager playlistManager,
             SongSelector songSelector,
             TimeManager timeManager,
+            HistoryManager historyManager,
             EnvironmentsListModel environmentsListModel)
         {
             _playlistManager = playlistManager;
             _songSelector = songSelector;
             _timeManager = timeManager;
+            _historyManager = historyManager;
             _environmentsListModel = environmentsListModel;
         }
 
@@ -168,6 +188,15 @@ namespace RandomPlaylistMod.Managers
                 return;
             }
 
+            // Phase 2: 初始化结果列表和会话快照
+            _currentResults = new List<SongResult>();
+            _sessionStartedAt = DateTime.Now;
+            var selectedPlaylists = _playlistManager.GetSelectedPlaylists();
+            _playlistNamesSnapshot = selectedPlaylists.Select(p => p.Name).ToList();
+            _playlistIdsSnapshot = selectedPlaylists.Select(p => p.Id).ToList();
+            _totalSongsInQueueSnapshot = _currentSongQueue.Count;
+            _availableSongCountSnapshot = allSongs.Count;
+
             _currentSession = new PlaySession
             {
                 DurationMinutes = settings.DurationMinutes,
@@ -186,15 +215,72 @@ namespace RandomPlaylistMod.Managers
         {
             var songCount = _currentSongIndex;
             var session = _currentSession;
+            var results = _currentResults ?? new List<SongResult>();
             _currentSession = null;
             _currentSongQueue = null;
             _currentSongIndex = 0;
+            _currentResults = null;
             _timeManager.StopTimer();
 
             if (session != null)
             {
                 session.CurrentSongIndex = songCount;
                 SessionEnded?.Invoke(session);
+
+                // Phase 2: 构建 SessionRecord 并保存
+                try
+                {
+                    var sessionId = SessionRecord.GenerateId();
+                    // 计算实际时长：优先用 TimeManager（更精确），fallback 到墙钟时间
+                    float elapsedFromTimer = _timeManager.GetElapsedMinutes();
+                    float elapsedFromClock = _sessionStartedAt != default
+                        ? (float)(DateTime.Now - _sessionStartedAt).TotalMinutes
+                        : 0f;
+                    var actualDurationMin = (int)Math.Round(
+                        elapsedFromTimer > 0.5f ? elapsedFromTimer : elapsedFromClock);
+                    Plugin.Log.Info($"PlaySessionManager: ActualDuration = {actualDurationMin} min (timer={elapsedFromTimer:F1}, clock={elapsedFromClock:F1})");
+                    var exerciseSummary = ExerciseSummary.FromSongResults(results);
+
+                    var record = new SessionRecord
+                    {
+                        SessionId = sessionId,
+                        StartedAt = _sessionStartedAt,
+                        EndedAt = DateTime.Now,
+                        TargetDurationMin = session.DurationMinutes,
+                        ActualDurationMin = actualDurationMin,
+                        PlaylistIds = _playlistIdsSnapshot ?? new List<string>(),
+                        PlaylistNames = _playlistNamesSnapshot ?? new List<string>(),
+                        TotalSongsInQueue = _totalSongsInQueueSnapshot,
+                        TotalSongsPlayed = results.Count(r => !r.Failed),
+                        SongResults = results,
+                        ExerciseSummary = exerciseSummary,
+                        Settings = new SessionSettingsSnapshot
+                        {
+                            MinNPS = MinNPS,
+                            MaxNPS = MaxNPS,
+                            NoFailEnabled = NoFailEnabled,
+                            HudEnabled = HudEnabled,
+                            PlaylistCount = _playlistIdsSnapshot?.Count ?? 0,
+                            AvailableSongCount = _availableSongCountSnapshot
+                        },
+                        ModVersion = "2.0.0"
+                    };
+
+                    // 异步保存会话记录
+                    _historyManager.SaveSessionAsync(record);
+
+                    // 增量更新 PlayerProfile
+                    _historyManager.IncrementProfile(record);
+
+                    // 触发 Phase 2 的事件
+                    SessionEndedWithRecord?.Invoke(session, record);
+
+                    Plugin.Log.Info($"PlaySessionManager: Session record '{sessionId}' saved with {results.Count} song results");
+                }
+                catch (Exception ex)
+                {
+                    Plugin.Log.Error($"PlaySessionManager: Failed to save session record: {ex.Message}");
+                }
             }
 
             Plugin.Log.Info($"PlaySessionManager: Session ended after {songCount} songs");
@@ -290,6 +376,7 @@ namespace RandomPlaylistMod.Managers
                 if (beatmapLevel == null)
                 {
                     Plugin.Log.Error($"PlaySessionManager: Could not find level for '{song.SongName}' (ID: {song.LevelId})");
+                    RecordFailedSong(song, "Level not found");
                     SongFailed?.Invoke(song, "Level not found");
                     AdvanceToNextSong();
                     PlayNextSong();
@@ -301,6 +388,7 @@ namespace RandomPlaylistMod.Managers
                 if (characteristics == null || characteristics.Count == 0)
                 {
                     Plugin.Log.Error($"PlaySessionManager: No characteristics found for '{song.SongName}'");
+                    RecordFailedSong(song, "No characteristics");
                     SongFailed?.Invoke(song, "No characteristics");
                     AdvanceToNextSong();
                     PlayNextSong();
@@ -315,6 +403,7 @@ namespace RandomPlaylistMod.Managers
                 if (difficulties == null || difficulties.Count == 0)
                 {
                     Plugin.Log.Error($"PlaySessionManager: No difficulties found for '{song.SongName}'");
+                    RecordFailedSong(song, "No difficulties");
                     SongFailed?.Invoke(song, "No difficulties");
                     AdvanceToNextSong();
                     PlayNextSong();
@@ -324,13 +413,48 @@ namespace RandomPlaylistMod.Managers
                 // 选择合适难度：优先匹配 NPS 范围的最难难度
                 var difficulty = SelectBestDifficulty(beatmapLevel, characteristic, difficulties);
 
-                Plugin.Log.Info($"PlaySessionManager: Launching level '{song.SongName}' difficulty {difficulty} characteristic {characteristic.serializedName}");
+                // Phase 2: 记录当前歌曲信息，供回调使用
+                _currentDifficulty = difficulty.ToString();
+                _currentSongNameForCallback = song.SongName;
+                _currentAuthorForCallback = song.Author;
+                _currentLevelIdForCallback = song.LevelId;
+                _currentSongDurationForCallback = song.Duration;
+
+                // 计算所选难度的 NPS
+                float selectedNPS = -1f;
+                try
+                {
+                    string hash = beatmapLevel.levelID;
+                    if (hash.StartsWith("custom_level_"))
+                        hash = hash.Substring(13);
+                    var sd = GetSongDetails();
+                    if (sd != null && sd.songs.FindByHash(hash, out Song sdcSong))
+                    {
+                        float dur = (float)sdcSong.songDurationSeconds;
+                        if (dur > 0f)
+                        {
+                            foreach (var diff in sdcSong.difficulties)
+                            {
+                                if ((BeatmapDifficulty)diff.difficulty == difficulty)
+                                {
+                                    selectedNPS = diff.notes / dur;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { }
+                _currentNPS = selectedNPS;
+
+                Plugin.Log.Info($"PlaySessionManager: Launching level '{song.SongName}' difficulty {difficulty} characteristic {characteristic.serializedName} NPS={selectedNPS:F1}");
 
                 // 获取 MenuTransitionsHelper
                 var menuTransitionsHelper = Resources.FindObjectsOfTypeAll<MenuTransitionsHelper>().FirstOrDefault();
                 if (menuTransitionsHelper == null)
                 {
                     Plugin.Log.Error("PlaySessionManager: MenuTransitionsHelper not found!");
+                    RecordFailedSong(song, "MenuTransitionsHelper not found");
                     SongFailed?.Invoke(song, "MenuTransitionsHelper not found");
                     AdvanceToNextSong();
                     PlayNextSong();
@@ -341,6 +465,7 @@ namespace RandomPlaylistMod.Managers
                 if (_environmentsListModel == null)
                 {
                     Plugin.Log.Error("PlaySessionManager: EnvironmentsListModel is null!");
+                    RecordFailedSong(song, "EnvironmentsListModel not found");
                     SongFailed?.Invoke(song, "EnvironmentsListModel not found");
                     AdvanceToNextSong();
                     PlayNextSong();
@@ -356,7 +481,13 @@ namespace RandomPlaylistMod.Managers
                 var colorScheme = beatmapLevel.GetColorScheme(characteristic, difficulty);
                 var overrideEnvironmentSettings = new OverrideEnvironmentSettings();
 
-                // 启动标准关卡（参数顺序匹配 Beat Saber 1.40+ 的 StartStandardLevel 签名）
+                // 启动标准关卡（参数顺序匹配 Beat Saber 1.44 的 StartStandardLevel 签名）
+                // 1.44 相比 1.40 移除了 beatmapOverrideColorScheme / backButtonText /
+                // useTestNoteCutSoundEffects / startPaused，新增 gameplayAdditionalInformation 与 beatmapLevelData。
+                // 重要：游戏 GameplayCoreSceneSetupData 硬性规定 beatmapLevelData 与 _beatmapLevelsModel 互斥，
+                // 而 _beatmapLevelsModel 由容器注入、永远非 null，故此处必须传 null，让游戏走正常的
+                // BeatmapLevelsModel 路径加载数据（Loader.GetLevelById 返回的就是已注册进 model 的关卡，
+                // 自定义歌与 OST 官方歌均支持）。传非 null 的 beatmapLevelData 会直接抛异常。
                 menuTransitionsHelper.StartStandardLevel(
                     "Solo",                             // gameMode
                     in beatmapKey,                       // beatmapKey
@@ -364,18 +495,16 @@ namespace RandomPlaylistMod.Managers
                     overrideEnvironmentSettings,         // overrideEnvironmentSettings
                     colorScheme,                         // playerOverrideColorScheme
                     true,                                // playerOverrideLightshowColors
-                    colorScheme,                         // beatmapOverrideColorScheme
                     CreateGameplayModifiers(),            // gameplayModifiers
                     new PlayerSpecificSettings(),         // playerSpecificSettings
                     null,                                // practiceSettings
                     _environmentsListModel,              // environmentsListModel
-                    null,                                // backButtonText
-                    false,                               // useTestNoteCutSoundEffects
-                    false,                               // startPaused
+                    new GameplayAdditionalInformation(null, false, false, default(PlaymodeOptions), null), // gameplayAdditionalInformation
                     null,                                // beforeSceneSwitchToGameplayCallback
                     null,                                // afterSceneSwitchToGameplayCallback
                     OnLevelCompleted,                    // levelFinishedCallback
                     null,                                // levelRestartedCallback
+                    null,                                // beatmapLevelData（传 null，走 BeatmapLevelsModel 正常路径）
                     null                                 // recordingToolData
                 );
 
@@ -385,6 +514,7 @@ namespace RandomPlaylistMod.Managers
             {
                 Plugin.Log.Error($"PlaySessionManager: Error starting level '{song.SongName}': {ex.Message}");
                 Plugin.Log.Error($"Stack trace: {ex.StackTrace}");
+                RecordFailedSong(song, ex.Message);
                 SongFailed?.Invoke(song, ex.Message);
                 AdvanceToNextSong();
                 PlayNextSong();
@@ -475,11 +605,55 @@ namespace RandomPlaylistMod.Managers
         }
 
         /// <summary>
-        /// 关卡完成回调，推进到下一首歌曲
+        /// Phase 2: 记录一首加载失败的歌曲（部分数据）
+        /// </summary>
+        private void RecordFailedSong(SongInfo song, string reason)
+        {
+            if (_currentResults != null && song != null)
+            {
+                var failedResult = SongResult.CreateFailed(
+                    song.SongName,
+                    song.Author,
+                    song.LevelId,
+                    _currentDifficulty ?? "Unknown",
+                    song.Duration,
+                    song.NPS
+                );
+                _currentResults.Add(failedResult);
+                Plugin.Log.Info($"PlaySessionManager: Failed song recorded - '{song.SongName}' reason: {reason}");
+            }
+        }
+
+        /// <summary>
+        /// 关卡完成回调，捕获结果并推进到下一首歌曲
         /// </summary>
         private void OnLevelCompleted(StandardLevelScenesTransitionSetupDataSO setupData, LevelCompletionResults results)
         {
             Plugin.Log.Info($"PlaySessionManager: Level completed with rank {results?.rank}");
+
+            // Phase 2: 构建 SongResult 并添加到结果列表
+            if (_currentResults != null)
+            {
+                try
+                {
+                    var songResult = SongResult.FromLevelCompletion(
+                        _currentSongNameForCallback ?? "Unknown",
+                        _currentAuthorForCallback ?? "",
+                        _currentLevelIdForCallback ?? "",
+                        _currentDifficulty ?? "Unknown",
+                        _currentSongDurationForCallback,
+                        _currentNPS,
+                        results
+                    );
+                    _currentResults.Add(songResult);
+                    Plugin.Log.Info($"PlaySessionManager: Song result captured - {songResult.SongName} [{songResult.Difficulty}] Score={songResult.Score} Rank={songResult.Rank} Acc={songResult.Accuracy:F1}%");
+                }
+                catch (Exception ex)
+                {
+                    Plugin.Log.Warn($"PlaySessionManager: Failed to capture song result: {ex.Message}");
+                }
+            }
+
             OnSongFinished();
         }
     }

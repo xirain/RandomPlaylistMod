@@ -4,15 +4,16 @@
   "id": "RandomPlaylistMod",
   "name": "RandomPlaylistMod",
   "author": "Developer",
-  "version": "1.7.0",
+  "version": "2.0.0",
   "description": "Beat Saber random playlist mod — set duration, filter by NPS (Notes Per Second), and play continuously from multiple playlists.",
-  "gameVersion": "1.40.8",
+  "gameVersion": "1.44.0",
   "dependsOn": {
     "BSIPA": "^4.1.0",
     "SiraUtil": "^3.0.0",
-    "SongCore": "^3.9.0",
+    "SongCore": "^3.16.0",
     "BeatSaberMarkupLanguage": "^1.6.0",
-    "SongDetailsCache": "^1.0.0"
+    "SongDetailsCache": "^1.0.0",
+    "PlaylistManager": "^1.0.0"
   },
   "links": {
     "project-home": "https://github.com/xirain/RandomPlaylistMod"

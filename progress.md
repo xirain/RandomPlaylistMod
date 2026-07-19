@@ -463,6 +463,238 @@
 | `manifest.json` | 修改 | 版本号 1.6.0 → 1.7.0 |
 | `RandomPlaylistMod.csproj` | 修改 | 版本号 1.6.0 → 1.7.0 |
 
+---
+
+## 🚀 Phase 2: 游戏数据持久化 & 分享功能 (v2.0.0)
+
+**开发日期**: 2026-06-23
+**版本号**: 2.0.0
+
+### 新增功能
+- ✅ 会话结束后自动保存游玩记录到本地 JSON（`UserData/RandomPlaylistMod/History/`）
+- ✅ 记录每首歌的得分、连击、失误、精度等运动数据（基于 `LevelCompletionResults`）
+- ✅ 玩家聚合档案（`profile.json`）：总会话数、总时长、连续天数等
+- ✅ 会话结束自动弹出总结面板（`SessionSummaryView`）
+- ✅ 生成分享 HTML 文件（`UserData/RandomPlaylistMod/Share/`）
+- ✅ 旧记录自动清理（保留最近 90 天）
+
+### 数据模型
+| 模型 | 文件 | 说明 |
+|------|------|------|
+| `SessionRecord` | `Models/SessionRecord.cs` | 单次会话完整记录（13字段） |
+| `SongResult` | `Models/SongResult.cs` | 单首歌结果（14字段，含 Failed 标志） |
+| `ExerciseSummary` | `Models/ExerciseSummary.cs` | 运动数据汇总（10字段） |
+| `PlayerProfile` | `Models/PlayerProfile.cs` | 玩家聚合档案（11字段） |
+| `SessionSettingsSnapshot` | `Models/SessionRecord.cs` | 设置快照（6字段） |
+
+### 新增类
+| 类 | 文件 | 说明 |
+|------|------|------|
+| `HistoryManager` | `Managers/HistoryManager.cs` | 持久化读写（AppInstaller 注册为 AsSingle） |
+| `ShareImageGenerator` | `Managers/ShareImageGenerator.cs` | 分享 HTML 模板生成 |
+| `SessionSummaryView` | `UI/SessionSummaryView.cs` + `.bsml` | 会话结束总结面板 |
+| `HistoryView` | `UI/HistoryView.cs` + `.bsml` | 历史记录浏览面板（列表+详情+删除+分享） |
+
+### 修改文件
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `Models/SongResult.cs` | 新增 | 歌曲结果模型（含 Failed 标志 + 属性安全读取） |
+| `Models/ExerciseSummary.cs` | 新增 | 运动数据汇总模型（10字段） |
+| `Models/PlayerProfile.cs` | 新增 | 玩家档案模型（11字段 + 增量更新） |
+| `Models/SessionRecord.cs` | 新增 | 会话记录 + SessionSettingsSnapshot 快照模型 |
+| `Managers/HistoryManager.cs` | 新增 | 数据持久化管理器（读写/清理/Profile维护） |
+| `Managers/ShareImageGenerator.cs` | 新增 | 分享 HTML 模板生成器 |
+| `UI/SessionSummaryView.cs` | 新增 | 会话总结面板（4指标+分享+历史入口） |
+| `UI/Views/SessionSummaryView.bsml` | 新增 | 总结面板布局 |
+| `UI/HistoryView.cs` | 新增 | 历史列表+详情+选择导航+删除/分享 |
+| `UI/Views/HistoryView.bsml` | 新增 | 历史面板布局 |
+| `Managers/PlaySessionManager.cs` | 修改 | 捕获 LevelCompletionResults + 构建 SessionRecord + 失败记录 |
+| `UI/RandomPlaylistFlowCoordinator.cs` | 修改 | 注入 HistoryView + ShowHistoryView/DismissHistoryView |
+| `Plugin.cs` | 修改 | AppInstaller/MenuInstaller 注册全部新服务 |
+| `RandomPlaylistMod.csproj` | 修改 | 嵌入全部 BSML + 版本号 1.7.0 → 2.0.0 |
+| `manifest.json` | 修改 | 版本号 1.7.0 → 2.0.0 |
+
+### UI 导航关系
+```
+菜单按钮 → RandomPlaylistFlowCoordinator
+  ├── RandomPlaylistUI (主界面)
+  │     └── [Start Session] 进入游戏
+  ├── SessionSummaryView (会话结束后自动弹出)
+  │     ├── [Generate Share] 生成分享 HTML
+  │     ├── [View History] → HistoryView
+  │     └── [Close] 关闭
+  └── HistoryView (历史记录浏览)
+        ├── ◀ Prev / ▶ Next 选择会话
+        ├── [Share This Session] 生成分享 HTML
+        ├── [Delete This Session] 删除记录
+        ├── [Back to Summary] 返回总结面板
+        └── [Close] 全部关闭
+```
+
+### 存储路径
+```
+UserData/RandomPlaylistMod/
+├── History/           ← 一条会话一个 JSON
+│   └── 20260623-143052-a1b2c3d4.json
+├── Share/             ← 分享 HTML 文件
+│   └── 20260623-143052-a1b2c3d4.html
+├── profile.json       ← 玩家聚合档案
+└── settings.json      ← （预留）模组设置
+
+---
+
+## 任务计划与执行结果（续 7）
+
+### Task 17: 修复 SessionSummaryView / HistoryView 布局重叠 + 按钮无文字（2026-07-08）
+
+#### 现象（用户反馈）
+- 结束 session 后总结面板排版乱、元素大量重叠
+- 底部按钮（Generate Share Image / View History / Close）看不到文字
+
+#### 根因（反编译 BSML.dll 字符串表确认）
+1. **重叠**：BSML `<vertical>`/`<horizontal>` 映射到 Unity LayoutGroup，`childControlHeight` 默认 true。旧 BSML 未显式设置，导致文本子元素高度被压成 0 → 重叠。能正常工作的 `RandomPlaylistView.bsml` 每个布局组都显式写了 `child-control-height="false"`。
+2. **按钮无文字**：
+   - `min-height` 在 BSML 中 **不支持**（dll 中 0 次出现），按钮高度被忽略，文字被压缩/不可见。
+   - 按钮 `class="action-button"/"secondary-button"/"close-button"/"delete-button"` 在工程中从未定义（无 styles.xml），属无效引用。
+   - 按钮文字含 emoji，TextMeshPro 可能无对应字形导致渲染异常。
+
+#### 实现
+- 两个 BSML 统一改为：根 `<bg>` + 内层 `<vertical>`，所有布局组显式加 `child-control-height="false" child-expand-height="false"`（对齐可用视图模式）。
+- 按钮：移除未定义 class、移除 emoji；用 BSML 支持的 `pref-height`/`pref-width` 设定尺寸（替代无效的 `min-height`）。
+- 添加 `xmlns:xsi` 命名空间声明。
+
+#### 修改文件清单
+| 文件 | 说明 |
+|------|------|
+| `UI/Views/SessionSummaryView.bsml` | 布局修复 + 按钮修复 |
+| `UI/Views/HistoryView.bsml` | 同样修复 |
+
+#### 验证
+- 编译 0 错误 0 警告；部署 1.40.8 / 1.42.2
+- DLL 内嵌 BSML 校验：`min-height=False`、`child-control-height=false=True`、`uses-class=False` ✅
+
+---
+
+## 任务计划与执行结果（续 8）
+
+### Task 18: 修复 SessionSummaryView 数据全空（仅标题显示）（2026-07-14）
+
+#### 现象（用户反馈）
+- 结束 session 后界面只有 "Session Complete!" 标题，所有数据（Duration / Songs Played / Score 等）全空
+- 日志确认：session 正常结束、record 已保存（8 首、17 分钟）、`SessionEndedWithRecord` 事件触发、`Summary view presented` 正常，无 BSML 报错
+
+#### 根因分析
+- 标题 `~summary-title` 是常量绑定 → 能显示；数据项 `~duration-text` 等依赖 `_currentRecord` → 全空。说明非常量绑定在渲染/刷新时失效，但绑定引用本身未变（与能显示数据的旧版 BSML 字节级一致）。
+- 对比差异：旧版（数据显示正常）**无** `xmlns:xsi` 声明；本次布局修复（Task 17）新增了 `xmlns:xsi="..."` + `xsi:noNamespaceSchemaLocation="..."`。这是两版间唯一影响解析/属性通知的结构性新增。`RandomPlaylistView.bsml` 虽有该声明但其数据多为展示即定值、未暴露此问题。
+- 结论：`xmlns:xsi` + schema 定位声明干扰了 BSML 对非常量绑定的属性变更通知，导致 `_currentRecord` 赋值后的 `NotifyPropertyChanged` 无法刷新文本。
+
+#### 实现
+1. `SessionSummaryView.bsml` / `HistoryView.bsml`：移除 `xmlns:xsi` 与 `xsi:noNamespaceSchemaLocation` 两行（回到已知能显示数据的结构），保留 `child-control-height="false"` 布局修复。
+2. `SessionSummaryView.cs`：`SetSessionRecord` 末尾追加 `NotifyPropertyChanged("")` 全量刷新，作为属性名匹配的兜底。
+
+#### 修改文件清单
+| 文件 | 说明 |
+|------|------|
+| `UI/Views/SessionSummaryView.bsml` | 移除 xmlns:xsi，保留布局修复 |
+| `UI/Views/HistoryView.bsml` | 同上 |
+| `UI/SessionSummaryView.cs` | SetSessionRecord 全量刷新 |
+
+#### 验证
+- 编译 0 错误 0 警告；部署 1.40.8 / 1.42.2
+- DLL 内嵌 BSML 校验：`xmlns:xsi=False`、`child-control-height=True`、`duration-text=True` ✅
+- 待用户实机验证：标题 + 四项数据 + 详情 + 三按钮文字均应正常显示
+
+## 任务计划与执行结果（续 9）
+
+### Task 19: 移植到 Beat Saber 1.44.0（点击 Start 卡死修复）（2026-07-19）
+
+#### 背景
+- 将 RandomPlaylistMod 与 PlaylistManager 移植到 BS 1.44.0 / SongCore 3.16.0（BSManager 实例路径 `F:\paly\BSManager\BSInstances\1.44.0`）。
+- 前期已修复：PlaylistManager 黑屏（`IPlatformUser` 改为 `[InjectOptional]`）、`MenuTransitionsHelper.StartStandardLevel` 签名变更（新增 `GameplayAdditionalInformation` 与 `IBeatmapLevelData beatmapLevelData` 参数，移除旧参数），csproj/manifest 已指向 1.44.0。
+
+#### 现象（用户反馈）
+- 点击 Start 后画面直接卡住（主线程冻结），并非无响应。
+
+#### 根因分析
+- 日志确认：`SongCore.Loader.CustomLevelLoader.LoadBeatmapLevelData(beatmapLevel)` 对**每一首歌都返回 null**（SongCore 3.16.0 从该 fork 构建，`LoadBeatmapLevelData` 构造函数体读取 `CustomLevelLoader._loadedBeatmapSaveData` 缓存并用 `CreateBeatmapLevelDataFromV3/V4` 重建 `IBeatmapLevelData`，该路径在运行时返回 null）。
+- 旧逻辑：`beatmapLevelData == null` 时调用 `OnLevelCompleted(null, null)` → `OnSongFinished` → `AdvanceToNextSong` → `PlayNextSong` → `StartLevel`，**在同一毫秒内同步递归遍历全部 332 首歌**，主线程被淹没 → 游戏卡死。
+
+#### 实现
+1. `PlaySessionManager.cs` 新增 `ResolveBeatmapLevelData(BeatmapLevel)`：
+   - 优先调用官方 `LoadBeatmapLevelData`；
+   - 返回 null 时，通过反射读取 `CustomLevelLoader._loadedBeatmapSaveData` 缓存，用 `CreateBeatmapLevelDataFromV4`/`CreateBeatmapLevelDataFromV3` 直接重建 `IBeatmapLevelData`（可绕过官方方法的异常吞没，暴露真实错误）；
+   - 输出**一次性**诊断日志（`[DataDiag]`），记录缓存命中、样例 key、LoadedSaveData 字段情况。
+2. `StartLevel` 中：取到数据失败后累计 `_consecutiveNullData`，连续 ≥10 首仍失败时调用 `EndSession()` 优雅停止，避免同步递归卡死。
+3. 新增 `using System.Reflection;`。
+
+#### 修改文件清单
+| 文件 | 说明 |
+|------|------|
+| `Managers/PlaySessionManager.cs` | 新增 `ResolveBeatmapLevelData` + 连续失败保护；`StartStandardLevel` 调用改用新方法 |
+
+#### 验证
+- 编译 0 错误 0 警告；已部署到 `1.44.0\Plugins`。
+- 待用户重启游戏实机验证：如仍失败，新日志中的 `[DataDiag]` 行会精确指出缓存 key 不匹配 / V3/V4 构造返回 null / 异常类型，据此二次修复。
+
+### Task 20: 点击 Start 直接显示结束画面修复（OST 官方歌无法加载）（2026-07-19）
+
+#### 现象（用户反馈）
+- 加了连续失败保护后，点 Start **不再卡死**，但**直接进入结束画面**（连续 ≥10 首取不到 beatmap 数据 → `EndSession()`）。
+
+#### 根因分析（借助 TypeProbe 反查 1.44.0 程序集）
+- `PlaylistManager` 含「🎼 官方歌曲 (OST)」虚拟歌单，`AddOfficialLevelSongs` 会把 `StartMeUp` 等 OST 官方歌加入队列。
+- `SongCore.Loader.CustomLevelLoader.LoadBeatmapLevelData(beatmapLevel)` **只认 `CustomLevelLoader._loadedBeatmapSaveData` 缓存（key 全是 `custom_level_<hash>`）**，OST 官方歌的数据在 AssetBundle 里、不在该缓存 → 永远返回 null。
+- 因此一旦歌单包含/选中 OST 官方歌，`ResolveBeatmapLevelData` 持续返回 null → 连续失败保护触发 → 直接结束画面。
+- 1.44.0 关键事实（已反查确认）：无 `IBeatmapLevel` 接口；`BeatmapLevel` 为普通类；`IBeatmapLevelData` 由 `BeatmapLevelDataSO` / `FileSystemBeatmapLevelData` / `CustomFileBeatmapLevelData` 实现；`SongCore.Hooks.BeatmapLevelCache.BeatmapJsonCacheHooks` 把自定义关卡数据注入游戏自带 `BeatmapLevelLoader`；`IBeatmapLevelLoader.LoadBeatmapLevelDataAsync(BeatmapLevel, BeatmapLevelDataVersion, CancellationToken)` 返回 `Task<LoadBeatmapLevelDataResult>`（`beatmapLevelData` 字段 / `isError` 属性），`BeatmapLevelDataVersion` 枚举仅 `Original`、`NoEnvironmentKeywords`。**该接口是游戏统一加载入口，自定义歌与 OST 官方歌都能加载。**
+
+#### 实现
+1. `PlaySessionManager.cs` 构造函数注入 `[InjectOptional] IBeatmapLevelLoader`（全局命名空间，定义于 `AdditionalContentModel.Interfaces`）。
+2. `ResolveBeatmapLevelData` 重写为两路：
+   - ① 优先 `SongCore.Loader.CustomLevelLoader.LoadBeatmapLevelData`（自定义歌最快）；
+   - ② 失败则用 `_beatmapLevelLoader.LoadBeatmapLevelDataAsync(beatmapLevel, BeatmapLevelDataVersion.Original, default).GetAwaiter().GetResult()`，取 `result.beatmapLevelData`（覆盖 OST 官方歌）。
+   - 兜底：若 App 容器未注入 `IBeatmapLevelLoader`（可能只绑在 Menu/Game 场景容器），运行时从当前场景 `SceneContext` 的 `Container.TryResolve<IBeatmapLevelLoader>()` 解析。
+3. `RandomPlaylistMod.csproj` 新增引用 `AdditionalContentModel.Interfaces.dll`。
+4. `LoadBeatmapLevelDataResult` 为 struct，按值处理（不判 null）。`using System.Threading;` 已加。
+
+#### 修改文件清单
+| 文件 | 说明 |
+|------|------|
+| `Managers/PlaySessionManager.cs` | 注入 `IBeatmapLevelLoader`；`ResolveBeatmapLevelData` 改为 SongCore 快速路径 + `IBeatmapLevelLoader` 统一兜底 + 场景容器兜底获取 |
+| `RandomPlaylistMod.csproj` | 新增 `AdditionalContentModel.Interfaces` 引用 |
+
+#### 验证
+- 编译 0 错误 0 警告；已部署到 `1.44.0\Plugins`。
+- 待用户重启游戏实机验证：点 Start 应正常进歌（含 OST 官方歌）。如 `[DataDiag]` 出现「IBeatmapLevelLoader 未注入」「返回错误」等，按日志二次处理。
+
+### Task 21: 点 Start 画面卡死/直接结束 —— beatmapLevelData 与 _beatmapLevelsModel 互斥（2026-07-19）
+
+#### 现象（用户反馈）
+- 部署 Task 20 后点 Start：**画面卡住**（后续日志显示异常被 catch，整张歌单快速遍历完 → 结束画面）。
+- 日志关键报错：`GameplayCoreSceneSetupData: When the beatmapLevelData is provided, there is no need to provide _beatmapLevelsModel. (Parameter 'beatmapLevelData')`，抛出于 `StartLevel` 调用 `MenuTransitionsHelper.StartStandardLevel`。
+
+#### 根因分析（反查 1.44.0 程序集 + 日志栈）
+- 游戏 `GameplayCoreSceneSetupData` 构造函数硬性规定：**`beatmapLevelData` 与 `_beatmapLevelsModel` 互斥**（两者都非 null 即抛 `ArgumentException`）。
+- `_beatmapLevelsModel` 由 Zenject 注入进 `StandardLevelScenesTransitionSetupDataSO`，**永远非 null**。
+- Task 20 引入的 `IBeatmapLevelLoader` 兜底成功返回了非 null 的 `beatmapLevelData`，于是 `StartStandardLevel` 同时带上 `beatmapLevelData`（非 null）和注入的 `_beatmapLevelsModel`（非 null）→ 必然抛异常 → catch → `PlayNextSong` → 每首都抛 → 快速遍历完歌单 → 结束画面。
+- **进一步回溯**：最初「点 Start 直接结束画面」的根因也是同一处——`ResolveBeatmapLevelData` 对自定义歌也返回非 null（SongCore 缓存里有），所以**所有歌**都触发此互斥异常，而非「OST 无法加载」。Task 20 的方向（给 OST 补数据）是错判，真正问题在调用参数。
+
+#### 实现（正确修复）
+- `PlaySessionManager.StartLevel`：调用 `StartStandardLevel` 时 **`beatmapLevelData` 参数传 `null`**，让游戏走正常的 `BeatmapLevelsModel` 路径加载关卡数据（这是游戏从菜单启动关卡的标准方式，`Loader.GetLevelById` 返回的关卡已注册进 model，自定义歌与 OST 官方歌均支持）。
+- 移除 Task 20 误引入的全部相关代码：`ResolveBeatmapLevelData` 方法、`IBeatmapLevelLoader` 字段与构造注入、`_consecutiveNullData` / `_dataDiagnosticLogged` 字段、基于 `ResolveBeatmapLevelData` 的连续失败保护 gating 块（该保护本身也掩盖了真实异常，应移除）。
+- 保留 `try/catch` 以兜底异常不崩溃。
+
+#### 修改文件清单
+| 文件 | 说明 |
+|------|------|
+| `Managers/PlaySessionManager.cs` | `StartStandardLevel` 的 `beatmapLevelData` 改为 `null`；删除 `ResolveBeatmapLevelData` 方法、相关字段与注入、连续失败 gating 块 |
+
+#### 验证
+- 编译 0 错误；已部署到 `1.44.0\Plugins`。
+- 待用户重启游戏实机验证：点 Start 应正常进入第一首歌并可持续播放。若仍有异常，`StartLevel` 的 catch 会输出 `Error starting level ...` + 栈，据此定位。
+
+
+
+
 
 
 

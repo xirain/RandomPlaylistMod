@@ -5,7 +5,7 @@ cls
 set "PROJECT_DIR=D:\code\aidemo\bsmodrandom\RandomPlaylistMod"
 set "BUILD_DIR=%PROJECT_DIR%\bin\Release"
 set "TARGET_DIR_1=F:\paly\BSManager\BSInstances\1.40.8\Plugins"
-set "TARGET_DIR_2=F:\paly\BSManager\BSInstances\1.42.2\Plugins"
+set "TARGET_DIR_2=F:\paly\BSManager\BSInstances\1.44.0\Plugins"
 
 echo ================================
 echo RandomPlaylistMod Deploy Script
@@ -56,7 +56,7 @@ echo   - RandomPlaylistMod.pdb
 echo.
 echo Checking required dependencies...
 echo.
-if not exist "F:\paly\BSManager\BSInstances\1.40.8\Plugins\SiraUtil.dll" (
+if not exist "r\SiraUtil.dll" (
     echo   WARNING: SiraUtil.dll not found in 1.40.8!
 )
 if not exist "F:\paly\BSManager\BSInstances\1.40.8\Plugins\BSML.dll" (

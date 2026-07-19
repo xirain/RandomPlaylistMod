@@ -3,13 +3,13 @@
     <TargetFramework>net48</TargetFramework>
     <AssemblyName>RandomPlaylistMod</AssemblyName>
     <RootNamespace>RandomPlaylistMod</RootNamespace>
-    <Version>1.7.0</Version>
+    <Version>2.0.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>
   <PropertyGroup>
-    <BeatSaberDir>F:\paly\BSManager\BSInstances\1.40.8</BeatSaberDir>
+    <BeatSaberDir>F:\paly\BSManager\BSInstances\1.44.0</BeatSaberDir>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="IPA.Loader">
@@ -88,6 +88,10 @@
       <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\DataModels.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="AdditionalContentModel.Interfaces">
+      <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\AdditionalContentModel.Interfaces.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="BeatmapCore">
       <HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\BeatmapCore.dll</HintPath>
       <Private>False</Private>
@@ -129,5 +133,7 @@
     <EmbeddedResource Include="manifest.json" />
     <EmbeddedResource Include="UI\Views\RandomPlaylistView.bsml" />
     <EmbeddedResource Include="UI\Views\SessionHudView.bsml" />
+    <EmbeddedResource Include="UI\Views\SessionSummaryView.bsml" />
+    <EmbeddedResource Include="UI\Views\HistoryView.bsml" />
   </ItemGroup>
 </Project>
