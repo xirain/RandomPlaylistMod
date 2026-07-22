@@ -4,7 +4,7 @@ Beat Saber 随机播放列表模组 — 设定时长，从多个歌单中随机�
 
 [English](README.en.md)
 
-> **当前状态**：v1.0 早期版本，核心功能可用，但可能存在一些问题。后续会持续改进，欢迎提交 Issue 反馈。
+> **当前状态**：v2.0 已发布，针对 Beat Saber 1.44 适配，核心功能与结束时信息展示完善。后续新功能在 1.44 上持续展开，欢迎提交 Issue 反馈。
 
 ## 测试环境
 
@@ -12,7 +12,7 @@ Beat Saber 随机播放列表模组 — 设定时长，从多个歌单中随机�
 
 - **头显**：Pico 4 Ultra
 - **串流**：Pico 串流软件（PC VR 串流）
-- **游戏**：Steam 版 Beat Saber 1.40.8
+- **游戏**：Steam 版 Beat Saber 1.44.0
 
 > 如果你在其他环境（Quest / Index / 等其他头显）中测试成功，欢迎在 Issues 中反馈！
 
@@ -41,7 +41,7 @@ Beat Saber 随机播放列表模组 — 设定时长，从多个歌单中随机�
 
 | 依赖 | 说明 |
 |------|------|
-| **Beat Saber 1.40.8** | 本模组针对此版本开发 |
+| **Beat Saber 1.44.0** | 本模组针对此版本开发 |
 | **BSIPA 4.1+** | 模组加载框架 |
 | **Playlist Manager** | 歌单管理模组（必须预先安装） |
 | **SongCore 3.9+** | 歌曲数据管理 |
@@ -75,7 +75,7 @@ Beat Saber 随机播放列表模组 — 设定时长，从多个歌单中随机�
 
 1. 打开 `RandomPlaylistMod/RandomPlaylistMod.csproj`，将 `BeatSaberDir` 修改为你本地的 Beat Saber 安装目录：
    ```xml
-   <BeatSaberDir>F:\paly\BSManager\BSInstances\1.40.8</BeatSaberDir>
+   <BeatSaberDir>F:\paly\BSManager\BSInstances\1.44.0</BeatSaberDir>
    ```
 2. 执行构建：
    ```bash

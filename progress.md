@@ -1,5 +1,7 @@
 # RandomPlaylistMod - 进度追踪
 
+> **开发目标（2026-07-19 决定）**：以 Beat Saber **1.44** 为主开发版本。`manifest` 游戏版本号维持 `1.44.0`，API 适配与兼容性修复优先针对 1.44。相关 fork 分支：`xirain/RandomPlaylistMod@1.44`、`xirain/PlaylistManager@1.44`。
+
 ## 项目状态：列表选择功能优化 ✅ 已完成
 
 ### 背景
@@ -691,6 +693,31 @@ UserData/RandomPlaylistMod/
 #### 验证
 - 编译 0 错误；已部署到 `1.44.0\Plugins`。
 - 待用户重启游戏实机验证：点 Start 应正常进入第一首歌并可持续播放。若仍有异常，`StartLevel` 的 catch 会输出 `Error starting level ...` + 栈，据此定位。
+
+### Task 22: 发布 RandomPlaylistMod 2.0（目标 1.44.0）+ 开发基线确立（2026-07-22）
+
+#### 决策（用户确认）
+- **发布 2.0**：本地 1.44 实验已结束，功能完善（含结束时信息展示），准备发布 2.0。
+- **开发基线**：**只在 Beat Saber 1.44 继续开发，不再维护 1.40**。后续新功能在 1.44 上展开。
+
+#### 依赖信息总结（发布用，来自 `manifest.json` dependsOn + 实例核验）
+- 目标游戏版本：`gameVersion = 1.44.0`；插件版本 `2.0.0`。
+- 运行时硬依赖 `dependsOn`：
+  - `BSIPA ^4.1.0`（实例实为 4.2.0 ✓）
+  - `SiraUtil ^3.0.0`
+  - `SongCore ^3.16.0`
+  - `BeatSaberMarkupLanguage ^1.6.0`（BSML，UI 用）
+  - `SongDetailsCache ^1.0.0`（NPS 筛选用）
+  - `PlaylistManager ^1.0.0`（实例实为 1.7.3 ✓；使用 1.44 适配 fork `xirain/PlaylistManager@1.44`）
+- 代码静态检查：`using BS_Utils` 0 命中 → `csproj` 中的 `BS_Utils` 引用是多余的（未使用，无害，可清理）。
+- 游戏内置程序集（非用户安装依赖，由 BS 1.44 提供）：UnityEngine / Zenject / HMUI / VRUI / BeatmapCore / GameplayCore / MenuSystem / Core / DataModels / Colors / BeatSaber.ViewSystem 等。
+
+#### 发布待办（提醒）
+- `manifest.json` 的 `author` 仍为占位 `"Developer"`，发布前应改为实际作者（如 `xirain`）。
+- `PlaylistManager` 依赖需 1.44 兼容版本；BeatMods 发布时 `dependsOn` 约束保持 `^1.0.0` 即可覆盖 1.7.x。
+
+#### 修改文件清单
+- 仅文档/记忆更新；源码无改动（依赖声明已就绪）。
 
 
 
