@@ -719,6 +719,141 @@ UserData/RandomPlaylistMod/
 #### 修改文件清单
 - 仅文档/记忆更新；源码无改动（依赖声明已就绪）。
 
+### Task 23: 游玩中按手柄 Y/B 收藏当前歌曲（2026-07-22）
+
+#### 需求（用户确认）
+- 运动游玩时若随机到特别喜欢的歌，想用 Pico 串流手柄的 **Y 或 B 键**（这两个键目前无对应功能）把当前歌曲保存到**固定歌单 "RandomPlaylist Favorites"**。
+- 触发方式：Y 或 B **任一按下即收藏一次**（边沿触发，长按不重复）。
+
+#### 输入方案选型（关键）
+- Beat Saber 1.44 实例使用 **OpenXR**（`Unity.XR.OpenXR.dll` / `UnityEngine.XRModule.dll` 存在，`Oculus.VR.dll`/`OVRInput` 不存在）。
+- Pico 串流走 OpenXR，手柄按键经 Unity XR Input 暴露。因此采用 **Unity XR Input**（`UnityEngine.XR.InputDevices` + `CommonUsages.secondaryButton`），后端无关、对 Pico 通用，而非 OVRInput。
+- `CommonUsages.secondaryButton` 即 Touch 手柄的 **B（右手）/ Y（左手）**，正好覆盖用户需求。
+
+#### 实现
+1. **`Managers/FavoriteManager.cs`**（新增，AppInstaller 注册 `AsSingle`）：
+   - 注入 `PlaySessionManager` 取当前歌曲 `CurrentSong`（随机会话期间有效）。
+   - `SaveCurrentSong()`：用 `BeatSaberPlaylistsLib.PlaylistManager.DefaultManager` 查找标题为 `RandomPlaylist Favorites` 的歌单（无则 `CreatePlaylist` 创建），按 `LevelId` 去重，`playlist.Add(level)` 添加当前关卡（`SongCore.Loader.GetLevelById`），`StorePlaylist` 写盘。
+   - 返回 `FavoriteResult`（Added / AlreadyInPlaylist / NoCurrentSong / Error）供 UI 反馈。
+2. **`UI/GameplayFavoriteInput.cs`**（新增，GameInstaller `FromNewComponentOnNewGameObject().NonLazy()`）：
+   - 每帧 `RefreshControllers()` 获取手柄设备，`TryGetFeatureValue(CommonUsages.secondaryButton)` 检测，做边沿触发（按下瞬间且上一帧未按下才触发一次）。
+   - 触发即调用 `FavoriteManager.SaveCurrentSong()`，并弹出**跟随主相机的 WorldSpace Canvas + TextMeshProUGUI 提示**（★ 已收藏 / 已在收藏歌单 / 当前没有可收藏的歌曲 / 收藏失败），1.8s 后自动隐藏。提示独立于 SessionHUD 开关，任何情况下都可见。
+3. **`Plugin.cs`**：AppInstaller 绑定 `FavoriteManager`；GameInstaller 绑定 `GameplayFavoriteInput`。
+4. **`RandomPlaylistMod.csproj`**：新增 `UnityEngine.XRModule.dll` 引用（提供 `InputDevices`/`CommonUsages`）。
+
+#### 修改文件清单
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `Managers/FavoriteManager.cs` | 新增 | 收藏歌单管理（创建/去重/写盘） |
+| `UI/GameplayFavoriteInput.cs` | 新增 | OpenXR 轮询 Y/B + 相机跟随提示 toast |
+| `Plugin.cs` | 修改 | 绑定 FavoriteManager 与 GameplayFavoriteInput |
+| `RandomPlaylistMod.csproj` | 修改 | 新增 UnityEngine.XRModule 引用 |
+
+#### 验证
+- 编译 0 错误；本次改动引入的 CS0649 已通过方法注入消除。仅剩 1 个既有警告 `SessionHudView.cs(153) CS0618`（`FindObjectOfType` 弃用，非本次改动，不影响功能）。Release DLL 已生成（`bin/Release/RandomPlaylistMod.dll`）。
+- 待用户实机验证：进入随机会话，游玩中按一下手柄 Y 或 B → 视野下方出现「★ 已收藏」提示；`Beat Saber_Data\Playlists\` 下生成/更新 `RandomPlaylist Favorites.bplist`；重复按同一首显示「已在收藏歌单」。
+
+### Task 24: 修复 Mods 页面不显示 RandomPlaylistMod（2026-07-23）
+
+#### 现象（用户报告）
+- 进游戏后 BSIPA 的 Mods 设置页面完全没有 RandomPlaylistMod；即使用 release 版本（133632 字节）也不能正常 load。
+
+#### 根因
+- 游戏实例 `Plugins\RandomPlaylistMod.manifest` 是一个 **bare manifest**（不声明 `file` 字段），为早期手动 `Copy-Item manifest.json → RandomPlaylistMod.manifest` 误部署。
+- BSIPA 加载插件时，把 `RandomPlaylistMod.dll`（从 `[Plugin]` 类读元数据）和 `RandomPlaylistMod.manifest`（同名）当成**两个独立插件**，日志报 `Found duplicates of RandomPlaylistMod, using newest`，并丢弃了含代码的 dll、保留了空壳 manifest → 插件 `[Init]` 不执行（日志里 `OnApplicationStart called` 从未打印，SiraUtil 的 Installing 列表无 RandomPlaylistMod）→ Mods 页面不显示。
+- 与 Y/B 收藏代码改动**无关**（故 release 版同样中招）。实例里其他插件（SiraUtil / BSML / SongCore / PlaylistManager）均**无** .manifest，仅依赖库有 .manifest；证明插件不应在游戏 Plugins 目录部署 bare manifest。
+
+#### 修复
+- 删除游戏实例 `Plugins\RandomPlaylistMod.manifest`（根因消除，Mods 页面恢复显示）。
+- 重新构建并部署最新 dll（`bin/Release/RandomPlaylistMod.dll`，含 Y/B 功能，138240 字节）到 1.44.0 实例。
+- `deploy.bat` 只复制 dll/pdb、不复制 manifest；`release.ps1` 仅把 `manifest.json` 作为 GitHub Release 附件上传，均不会再引入该问题。源码仓库的 `manifest.json` 保留。
+
+#### 验证
+- 重启 Beat Saber 后，Mods 页面应显示 RandomPlaylistMod 2.0.0；日志出现 `RandomPlaylistMod: OnApplicationStart called`，且 SiraUtil Installing 列表含 `RandomPlaylistMod` 的 AppInstaller/MenuInstaller/GameInstaller。
+
+#### 修改文件清单
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `Plugins/RandomPlaylistMod.manifest`（游戏实例） | 删除 | 误部署的 bare manifest，导致 IPA duplicate 误判丢弃含代码 dll |
+| `RandomPlaylistMod.dll`（游戏实例） | 重新部署 | 最新构建（含 Y/B 收藏） |
+
+### Task 25: 收藏（B 短按）/ 退出会话（B 长按）功能实现（2026-07-23，待实机验证）
+
+#### 现象（用户报告）
+- 进游戏玩的时候按了约 3 次 B 键，收藏功能毫无反应（无提示、未生成 `RandomPlaylist Favorites` 歌单）。
+- 全盘搜索 `Logs/` 目录，完全搜不到任何 `Favorite` / `GameInstaller` / 进入关卡的日志，说明 `OnFavoritePressed` 从未被触发 → **B 键没有被检测到**。
+
+#### 初步分析
+- 原 `GameplayFavoriteInput` 仅监听 `CommonUsages.secondaryButton`（Touch 手柄 B 右手 / Y 左手）。Pico 串流到 PC（OpenXR）时，B 键不一定映射成 `secondaryButton`，导致 `pressed` 恒为 false、按键回调永不触发，因此连日志都没有。
+- 插件本身已正常加载（`OnApplicationStart called`、`MenuInstaller` 正常），问题在前端输入捕获。
+
+#### 已做的改动（已部署 140800 字节版本）
+- `RandomPlaylistMod/UI/GameplayFavoriteInput.cs` 重写：
+  - **B 键短按 = 收藏当前歌曲**（保留 Phase 2 收藏功能，写入 `RandomPlaylist Favorites` 歌单）；**B 键长按（0.7s）= 退出随机会话**（`PlaySessionManager.EndSession()`，停止随机播放、保存会话记录；当前歌播完后 `OnSongFinished` 检测到 `IsSessionActive==false` 即不再放下一首）。
+  - 去掉 `primaryButton`（A/X）检测：**A 键在 Pico 串流下映射为系统菜单键（menuButton），会弹系统菜单，不能做游戏内功能**，故收藏/退出统一绑定到 B 键（Beat Saber 游戏内 B 键无冲突）。
+  - 增加"裸按键诊断采样"：每 0.4s 采样所有设备上的 `secondary/primary/menu/grip/trigger` 裸值并打印，用于一次实测确认 Pico 串流的 B/A 真实映射。
+  - 诊断日志：`Start called`、`Controllers refreshed: count=… devices=[…]`、`Raw buttons down: …`、`B down (edge)`、`B short-press -> favorite`、`B long-press -> exit session`、`Invoking SaveCurrentSong`、`Exiting session (EndSession)`。
+  - 新增 `using System.Linq;`，`Construct` 增加注入 `PlaySessionManager`（跨 App/StandardPlayer 容器解析，与 GameInstaller 注入 `MenuTransitionsHelper` 同理）。
+- 已重新构建并部署到 1.44.0 实例（dll 140800 字节）。
+
+#### 待用户实机验证（关键）
+- 启动 Beat Saber → **进入 RandomPlaylistMod 的随机会话** → 游戏中：
+  - 短按 B 键 → 应弹「★ 已收藏」提示（歌曲进入 `RandomPlaylist Favorites.bplist`）；
+  - 长按 B 键（约 0.7s）→ 应弹「已退出随机会话」，当前歌播完后不再放下一首。
+- 日志应出现：
+  - `[GameplayFavoriteInput] Raw buttons down: …` → 确认 Pico 串流下 B 键实际映射（期望 `secondary(B/Y)`；若只出现 `menu`/`grip`/`primary` 等，说明 B 映射成别的 usage，据日志改绑定）；
+  - `B short-press -> favorite` / `B long-press -> exit session` → 按键已被捕获；
+  - `[Favorite] 已收藏歌曲…` 或 `Exiting session (EndSession)` → 功能执行。
+- 若日志完全无 `[GameplayFavoriteInput]` 任何行 → 组件未运行（GameInstaller 未安装）或手柄未被 OpenXR 识别。
+- 若长按退出后想立即回菜单：按 A（系统菜单键）退关卡即可。
+
+#### 2026-07-24 实机验证结论：短按收藏其实成功，问题在反馈不可见
+- 解析 `2026.07.24.09.18.53.log.gz`（用户测试 run）：手柄识别为 `Index Controller OpenXR`，B 键映射为 `secondary(B/Y)`，组件运行正常。
+  - `B short-press -> favorite` = **9 次**，`Invoking SaveCurrentSong` = 9 次，`[Favorite] 已收藏歌曲` = 7+ 次，`保存收藏失败`/`NoCurrentSong` = 0。
+  - 歌单文件实际落到 **`F:\paly\BSManager\SharedContent\Playlists\RandomPlaylist_Favorites.bplist`**（即 `1.44.0\Playlists` 这个 junction 的真实目标），含 **10 首歌**（Genkai / Odo / Domination / Choke / Delusion / Vibetribe / The Master / Judgement / Volt Tackle / I'LL SHOW YOU）。
+  - **结论：短按 B 收藏功能本就工作正常**，收藏写入成功。
+- 用户"不生效"的真因 = **没有任何可见反馈**：原 toast 用 `WorldSpace` Canvas 挂在 `Camera.main` 下，而 Beat Saber gameplay 的 HUD（分数/能量条）是 `ScreenSpaceOverlay` 层，永远盖在 WorldSpace 之上 → 提示弹了但被 HUD 完全遮挡看不见；用户也不知道去 PlaylistManager 歌单列表（需刷新/进入才显示）查看 `RandomPlaylist Favorites` 歌单。
+
+#### 2026-07-24 已做修复（已部署 140800 字节版本）
+- `RandomPlaylistMod/UI/GameplayFavoriteInput.cs` 的 `EnsureToast()` 重写：
+  - 由 `WorldSpace`（挂 Camera.main、`(0,-0.35,1.4)`、缩放 0.0025）改为 **`ScreenSpaceOverlay`**，并设 `sortingOrder = 1000`（与 HUD 同层且置顶），不再依赖 `Camera.main`。
+  - 文本锚点居中偏上 `(0.5, 0.72)`、字号 48、尺寸 900×140，确保任何场景（菜单/关卡）下收藏与退出提示都可见。
+- 已重新构建并部署到 1.44.0 实例（dll 140800 字节，10:01 构建）。
+
+#### 待用户复测
+- 启动 Beat Saber → 进随机会话 → **短按 B** 应明显看到屏幕上方居中弹「★ 已收藏「曲名」」；**长按 B** 弹「已退出随机会话」。
+- 在 Beat Saber 主菜单打开 **PlaylistManager** 歌单列表（进入时会刷新）即可看到 `RandomPlaylist Favorites` 歌单（10 首歌）。
+- 若仍看不到提示 → 日志看 `EnsureToast` 是否报错、或 `ScreenSpaceOverlay` 被其他插件覆盖（可再调高 sortingOrder）。
+
+#### 修改文件清单
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `RandomPlaylistMod/UI/GameplayFavoriteInput.cs` | 重写 | B 短按收藏 + B 长按退出会话 + 全按键映射诊断采样，去掉 A 键检测 |
+| `RandomPlaylistMod/UI/GameplayFavoriteInput.cs` | 修改 | `EnsureToast` 改为 `ScreenSpaceOverlay` 高排序层，修复提示被 HUD 遮挡不可见的问题 |
+
+#### 2026-07-27 长按 B 退出 session 失效修复（已部署 140800 字节版本，09:43 构建）
+- **用户报告**：测试长按 B 不生效、无法退出 session（短按收藏也疑似不灵）。
+- **日志排查（2026.07.27.08.37.36.log）**：组件正常运行（`Start called`、2 个 `Index Controller OpenXR` 有效）。关键证据在 08:39:25 那次按键：
+  ```
+  1861: B down (edge)
+  ...（中间约 19 秒按住）...
+  1911: B down (edge)   ← 抖动造成的伪边沿，期间无 long-press
+  ```
+  用户按住 B 约 19 秒本应触发长按退出，却**没有** `B long-press` 日志，19 秒后才重新出现 `B down (edge)`。仅 08:56:09 那次（极少数连续稳定按住）成功触发了 `B long-press -> exit session`（`SessionEnded event - played 115 songs`）。短按偶尔能命中只是因为那次没被抖动打断。
+- **根因**：OpenXR 手柄在按住 B 期间 `secondaryButton` 状态会**抖动**（部分帧 `TryGetFeatureValue` 轮询为 false）。旧逻辑每次 `down && !_wasDown`（含抖动伪边沿）都重置 `_pressDownTime`，导致 0.7s 长按阈值永远累积不到 → **长按几乎不触发**。此 bug 与 7/24 的 toast 改动无关（那次只改了提示显示）。
+- **修复（GameplayFavoriteInput.Update）**：
+  - 长按计时改为：仅在 `_pressDownTime < 0`（全新一次按下）时启动；抖动伪边沿（`down && !_wasDown` 但已在按下周期内）**不再重置计时**，长按累计时间容忍抖动。
+  - 新增 `_releaseFrames` 计数 + `ReleaseDebounceFrames = 4`（约 0.066s）：只有连续 4 帧检测到未按下才视为真正松开，避免按住期间单帧抖动误触发短按收藏。
+  - 长按触发后用户松开时重置 `_pressDownTime = -1`，准备下次按下。
+- **验证预期**：进随机会话后，按住 B 约 0.7s（即使中间状态抖动）应稳定触发 `B long-press -> exit session`；短按 B 松开后应弹「★ 已收藏」且不因抖动误收藏。日志应同时出现 `B down (edge)`、`B long-press -> exit session` / `B short-press -> favorite`。
+
+#### 修改文件清单（累计）
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `RandomPlaylistMod/UI/GameplayFavoriteInput.cs` | 重写 | B 短按收藏 + B 长按退出会话 + 全按键映射诊断采样，去掉 A 键检测 |
+| `RandomPlaylistMod/UI/GameplayFavoriteInput.cs` | 修改 | `EnsureToast` 改为 `ScreenSpaceOverlay` 高排序层，修复提示被 HUD 遮挡不可见 |
+| `RandomPlaylistMod/UI/GameplayFavoriteInput.cs` | 修改 | Update 长按计时容忍抖动 + 短按 4 帧防抖，修复长按 B 几乎不触发的问题 |
+
 
 
 

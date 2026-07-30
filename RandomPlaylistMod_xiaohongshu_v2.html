@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RandomPlaylistMod</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff;
+            width: 1080px;
+            height: 1440px;
+            padding: 40px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            text-align: center;
+            padding: 30px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 20px;
+            margin-bottom: 30px;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+        .header h1 {
+            font-size: 56px;
+            font-weight: 900;
+            margin-bottom: 15px;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .header .subtitle {
+            font-size: 24px;
+            color: rgba(255,255,255,0.9);
+            margin-bottom: 10px;
+        }
+        .version {
+            display: inline-block;
+            padding: 8px 25px;
+            background: rgba(255,255,255,0.25);
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 22px;
+            border: 2px solid rgba(255,255,255,0.4);
+        }
+        .content {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .column { display: flex; flex-direction: column; gap: 15px; }
+        .card {
+            background: rgba(255,255,255,0.12);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255,255,255,0.25);
+            border-radius: 15px;
+            padding: 20px;
+        }
+        .card h3 {
+            font-size: 26px;
+            color: #ffd700;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        .card p {
+            font-size: 20px;
+            color: rgba(255,255,255,0.9);
+            line-height: 1.6;
+        }
+        .footer {
+            text-align: center;
+            padding: 25px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 15px;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+        .footer h2 {
+            font-size: 32px;
+            margin-bottom: 15px;
+            color: #ffffff;
+            font-weight: 800;
+        }
+        .footer p {
+            font-size: 20px;
+            color: rgba(255,255,255,0.8);
+            line-height: 1.8;
+        }
+        .highlight {
+            color: #ffd700;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎵 RandomPlaylistMod</h1>
+        <p class="subtitle">Beat Saber 智能随机歌单模组</p>
+        <p class="subtitle">自定义时长 · 智能匹配 · 沉浸体验</p>
+        <span class="version">v1.7.0</span>
+    </div>
+
+    <div class="content">
+        <div class="column">
+            <div class="card">
+                <h3>⏱️ 智能时长控制</h3>
+                <p>设置目标游戏时长（30/60/120分钟），自动选择合适歌曲组合</p>
+            </div>
+            <div class="card">
+                <h3>🎯 NPS 难度过滤</h3>
+                <p>按每秒音符数筛选，只玩适合你水平的谱面</p>
+            </div>
+            <div class="card">
+                <h3>🎶 BPM 节奏筛选</h3>
+                <p>设置节奏范围（120-160），保持游戏体验一致性</p>
+            </div>
+            <div class="card">
+                <h3>📀 多歌单支持</h3>
+                <p>支持官方歌曲（OST）和自定义歌单，打造专属曲库</p>
+            </div>
+        </div>
+        <div class="column">
+            <div class="card">
+                <h3>🎮 游戏内 HUD</h3>
+                <p>VR中实时显示进度、时间、歌曲数，信息一目了然</p>
+            </div>
+            <div class="card">
+                <h3>💡 No Fail 模式</h3>
+                <p>能量耗尽不失败，适合练习和休闲游戏</p>
+            </div>
+            <div class="card">
+                <h3>🔄 队列自动重排</h3>
+                <p>歌曲播放完毕自动重新打乱，持续游戏不间断</p>
+            </div>
+            <div class="card">
+                <h3>🧠 智能难度选择</h3>
+                <p>自动匹配NPS范围内最高难度，无需手动选择</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <h2>📥 立即下载</h2>
+        <p>GitHub: <span class="highlight">xirain/RandomPlaylistMod</span></p>
+        <p>支持 Beat Saber 1.40.8+ | 需要 BSIPA、SiraUtil、SongCore、PlaylistManager</p>
+        <p style="margin-top: 10px;">⭐ 开源免费 · MIT协议 · 欢迎 Star</p>
+    </div>
+</body>
+</html>

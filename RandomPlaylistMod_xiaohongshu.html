@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RandomPlaylistMod - Beat Saber 智能随机歌单</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff;
+            width: 1080px;
+            height: 1440px;
+            padding: 40px 50px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .container {
+            max-width: 980px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+            padding: 50px 30px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 30px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .header h1 {
+            font-size: 68px;
+            font-weight: 900;
+            margin-bottom: 20px;
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            letter-spacing: 2px;
+        }
+
+        .header .subtitle {
+            font-size: 30px;
+            color: rgba(255, 255, 255, 0.95);
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .header .version-badge {
+            display: inline-block;
+            padding: 12px 35px;
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(10px);
+            border-radius: 30px;
+            font-weight: 700;
+            font-size: 26px;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+        }
+
+        .section {
+            margin-bottom: 50px;
+        }
+
+        .section-title {
+            font-size: 40px;
+            font-weight: 800;
+            margin-bottom: 30px;
+            padding-left: 20px;
+            border-left: 8px solid #ffd700;
+            color: #ffd700;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            border-radius: 20px;
+            padding: 28px;
+            transition: all 0.3s ease;
+        }
+
+        .feature-card h3 {
+            font-size: 30px;
+            margin-bottom: 15px;
+            color: #ffd700;
+            font-weight: 700;
+        }
+
+        .feature-card p {
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.7;
+            font-size: 24px;
+        }
+
+        .feature-full {
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 25px;
+        }
+
+        .feature-full h3 {
+            font-size: 32px;
+            margin-bottom: 15px;
+            color: #ffd700;
+            font-weight: 700;
+        }
+
+        .feature-full p {
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.8;
+            font-size: 25px;
+        }
+
+        .download-section {
+            text-align: center;
+            padding: 50px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 25px;
+            margin: 50px 0;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .download-section h2 {
+            font-size: 42px;
+            margin-bottom: 30px;
+            color: #ffffff;
+            font-weight: 800;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .github-link {
+            display: inline-block;
+            padding: 20px 50px;
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(10px);
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 35px;
+            font-size: 28px;
+            font-weight: 700;
+            margin: 15px;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 40px 30px;
+            color: rgba(255, 255, 255, 0.8);
+            border-top: 2px solid rgba(255, 255, 255, 0.2);
+            margin-top: 60px;
+        }
+
+        .footer p {
+            font-size: 24px;
+            line-height: 1.8;
+        }
+
+        .footer strong {
+            color: #ffd700;
+            font-size: 26px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎵 RandomPlaylistMod</h1>
+            <p class="subtitle">Beat Saber 智能随机歌单模组</p>
+            <p class="subtitle">自定义时长 · 智能匹配 · 沉浸体验</p>
+            <span class="version-badge">v1.7.0</span>
+        </div>
+
+        <!-- Core Features -->
+        <div class="section">
+            <h2 class="section-title">🌟 核心功能</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3>⏱️ 智能时长</h3>
+                    <p>设置游戏时长，自动选歌，精准控制运动时间</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🎯 NPS 过滤</h3>
+                    <p>按难度筛选，只玩适合你水平的谱面</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🎶 BPM 筛选</h3>
+                    <p>设置节奏范围，保持游戏体验一致性</p>
+                </div>
+                <div class="feature-card">
+                    <h3>📀 多歌单</h3>
+                    <p>支持官方歌曲和自定义歌单，打造专属曲库</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Special Features -->
+        <div class="section">
+            <h2 class="section-title">✨ 特色功能</h2>
+            <div class="feature-full">
+                <h3>🎮 游戏内 HUD</h3>
+                <p>VR 中实时显示进度、时间、歌曲数，信息一目了然</p>
+            </div>
+            <div class="feature-full">
+                <h3>💡 No Fail 模式</h3>
+                <p>能量耗尽不失败，适合练习和休闲游戏</p>
+            </div>
+            <div class="feature-full">
+                <h3>🔄 自动重排</h3>
+                <p>队列播放完毕自动重新打乱，持续游戏不间断</p>
+            </div>
+        </div>
+
+        <!-- Download -->
+        <div class="download-section">
+            <h2>📥 立即下载</h2>
+            <a href="https://github.com/xirain/RandomPlaylistMod/releases" class="github-link">
+                GitHub Release 下载
+            </a>
+            <p style="margin-top: 25px; font-size: 22px; color: rgba(255, 255, 255, 0.8);">
+                支持 Beat Saber 1.40.8+<br>
+                需要 BSIPA、SiraUtil、SongCore
+            </p>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>
+                <strong>RandomPlaylistMod</strong><br>
+                开发者：xirain<br>
+                开源免费 · MIT 协议
+            </p>
+            <p style="margin-top: 20px; font-size: 20px;">
+                ⭐ 如果喜欢请点 Star！<br>
+                🐛 问题反馈：GitHub Issues
+            </p>
+        </div>
+    </div>
+</body>
+</html>

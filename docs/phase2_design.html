@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RandomPlaylistMod Phase 2 - 游戏数据持久化 & 分享功能 设计文档</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --card: #161b22;
+            --border: #30363d;
+            --accent: #58a6ff;
+            --green: #3fb950;
+            --orange: #d29922;
+            --purple: #a371f7;
+            --red: #f85149;
+            --text: #c9d1d9;
+            --muted: #8b949e;
+            --code-bg: #1c2128;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, 'Microsoft YaHei', 'PingFang SC', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 40px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 60px 40px;
+            margin-bottom: 50px;
+            background: linear-gradient(135deg, #1a1f35 0%, #0d1117 50%, #1a1535 100%);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+        }
+        .header h1 { font-size: 42px; font-weight: 800; margin-bottom: 16px; background: linear-gradient(90deg, #58a6ff, #a371f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header .subtitle { font-size: 20px; color: var(--muted); margin-bottom: 20px; }
+        .header .badge { display: inline-block; padding: 6px 18px; background: rgba(88,166,255,0.15); border: 1px solid rgba(88,166,255,0.4); border-radius: 20px; font-size: 15px; color: var(--accent); margin: 4px; }
+        .header .status-badge { display: inline-block; padding: 6px 18px; background: rgba(210,153,34,0.15); border: 1px solid rgba(210,153,34,0.4); border-radius: 20px; font-size: 15px; color: var(--orange); margin: 4px; }
+
+        /* Navigation */
+        .nav {
+            display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 40px;
+            background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+        }
+        .nav a {
+            color: var(--accent); text-decoration: none; padding: 6px 14px;
+            border-radius: 8px; font-size: 14px; transition: all 0.2s;
+        }
+        .nav a:hover { background: rgba(88,166,255,0.1); }
+
+        /* Sections */
+        .section {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 36px; margin-bottom: 30px;
+        }
+        .section h2 {
+            font-size: 28px; margin-bottom: 24px; padding-bottom: 12px;
+            border-bottom: 2px solid var(--border); color: var(--accent);
+            display: flex; align-items: center; gap: 12px;
+        }
+        .section h2 .num {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 36px; height: 36px; background: var(--accent); color: #fff;
+            border-radius: 8px; font-size: 18px; font-weight: 700; flex-shrink: 0;
+        }
+        .section h3 {
+            font-size: 20px; color: var(--purple); margin: 24px 0 12px;
+        }
+        .section h4 {
+            font-size: 16px; color: var(--orange); margin: 16px 0 8px;
+        }
+
+        /* Tables */
+        table {
+            width: 100%; border-collapse: collapse; margin: 16px 0;
+            font-size: 14px;
+        }
+        th, td {
+            border: 1px solid var(--border); padding: 10px 14px; text-align: left;
+        }
+        th { background: rgba(88,166,255,0.08); color: var(--accent); font-weight: 600; }
+        td { color: var(--text); }
+        td.mono { font-family: 'Consolas', 'Courier New', monospace; font-size: 13px; color: var(--green); }
+        td.type { color: var(--orange); font-weight: 500; }
+
+        /* Code blocks */
+        pre {
+            background: var(--code-bg); border: 1px solid var(--border);
+            border-radius: 8px; padding: 20px; overflow-x: auto;
+            font-family: 'Consolas', 'Courier New', monospace; font-size: 13px;
+            line-height: 1.5; margin: 12px 0;
+        }
+        code { font-family: 'Consolas', 'Courier New', monospace; font-size: 13px; }
+        .inline-code {
+            background: var(--code-bg); border: 1px solid var(--border);
+            padding: 2px 6px; border-radius: 4px; font-size: 13px;
+        }
+
+        /* Flow diagram */
+        .flow {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            flex-wrap: wrap; margin: 20px 0; padding: 24px;
+            background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+        }
+        .flow-step {
+            padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 600;
+            border: 2px solid var(--border); background: var(--card); white-space: nowrap;
+        }
+        .flow-step.start { border-color: var(--green); color: var(--green); }
+        .flow-step.process { border-color: var(--accent); color: var(--accent); }
+        .flow-step.save { border-color: var(--purple); color: var(--purple); }
+        .flow-step.end { border-color: var(--orange); color: var(--orange); }
+        .flow-arrow { font-size: 20px; color: var(--muted); }
+
+        /* Legend */
+        .legend {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 12px; margin: 16px 0;
+        }
+        .legend-item {
+            display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+            background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+            font-size: 13px;
+        }
+        .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+        .legend-dot.new { background: var(--green); }
+        .legend-dot.modify { background: var(--orange); }
+        .legend-dot.existing { background: var(--accent); }
+
+        /* Notes */
+        .note {
+            background: rgba(88,166,255,0.08); border-left: 4px solid var(--accent);
+            padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 12px 0; font-size: 14px;
+        }
+        .warning {
+            background: rgba(210,153,34,0.08); border-left: 4px solid var(--orange);
+            padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 12px 0; font-size: 14px;
+        }
+
+        /* Grid */
+        .grid-2 {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 16px 0;
+        }
+        @media (max-width: 800px) { .grid-2 { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<div class="container">
+
+<!-- ====== HEADER ====== -->
+<div class="header">
+    <h1>📋 RandomPlaylistMod — Phase 2 设计文档</h1>
+    <p class="subtitle">游戏数据持久化保存 & 双次应用分享功能</p>
+    <div>
+        <span class="badge">Phase 2</span>
+        <span class="badge">v2.0.0</span>
+        <span class="status-badge" style="color:#3fb950; background:rgba(63,185,80,0.15); border-color:rgba(63,185,80,0.4);">已完成</span>
+    </div>
+    <p style="color: var(--muted); margin-top: 16px;">
+        基于 Phase 1 现有架构（官方歌单 + 自定义歌单 + 游戏数据）<br>
+        新增：游玩记录持久化、运动数据追踪、会话分享
+    </p>
+</div>
+
+<!-- ====== NAVIGATION ====== -->
+<div class="nav">
+    <a href="#sec1">1. 需求概述</a>
+    <a href="#sec2">2. 数据模型设计</a>
+    <a href="#sec3">3. 存储方案</a>
+    <a href="#sec4">4. 持久化流程</a>
+    <a href="#sec5">5. 分享功能设计</a>
+    <a href="#sec6">6. 状态流转</a>
+    <a href="#sec7">7. 文件变更清单</a>
+    <a href="#sec8">8. 实施计划</a>
+</div>
+
+<!-- ====== 图例 ====== -->
+<div class="legend">
+    <div class="legend-item"><span class="legend-dot new"></span> 新增文件</div>
+    <div class="legend-item"><span class="legend-dot modify"></span> 修改现有文件</div>
+    <div class="legend-item"><span class="legend-dot existing"></span> 现有文件（不变）</div>
+</div>
+
+<!-- ====== 1. 需求概述 ====== -->
+<div class="section" id="sec1">
+    <h2><span class="num">1</span> 需求概述</h2>
+
+    <h3>1.1 核心目标</h3>
+    <table>
+        <tr><th style="width:60px">编号</th><th>目标</th><th>说明</th></tr>
+        <tr><td>G1</td><td>游玩记录持久化</td><td>每次会话结束后，自动保存完整的游玩数据到本地 JSON 文件</td></tr>
+        <tr><td>G2</td><td>运动数据追踪</td><td>记录每首歌的得分、连击、失误、精度等运动表现数据</td></tr>
+        <tr><td>G3</td><td>分享功能</td><td>支持将会话摘要生成图文内容，用于游戏内分享和外部社交平台分享</td></tr>
+        <tr><td>G4</td><td>本地存储</td><td>数据保存在 Beat Saber 游戏目录下的独立文件夹，不依赖外部服务</td></tr>
+    </table>
+
+    <h3>1.2 非功能需求</h3>
+    <ul style="margin-left:20px; color:var(--text); font-size:14px; line-height:2;">
+        <li><strong>可靠性</strong>：数据写入失败不影响游戏正常运行，采用 try-catch 保护</li>
+        <li><strong>兼容性</strong>：JSON 格式向下兼容，新增字段使用默认值</li>
+        <li><strong>性能</strong>：写入操作在会话结束时异步执行，不阻塞主线程</li>
+        <li><strong>隐私</strong>：所有数据仅存储在本地，不上传到任何服务器</li>
+    </ul>
+
+    <h3>1.3 用户故事</h3>
+    <table>
+        <tr><th style="width:30px">#</th><th>角色</th><th>场景</th><th>价值</th></tr>
+        <tr>
+            <td>1</td><td>玩家</td>
+            <td>完成一次 60 分钟随机歌单会话后，我希望看到这次打了哪些歌、得了多少分</td>
+            <td>成就感、复盘</td>
+        </tr>
+        <tr>
+            <td>2</td><td>玩家</td>
+            <td>想回顾上周的运动数据，看看进步了多少</td>
+            <td>运动追踪、进度可视化</td>
+        </tr>
+        <tr>
+            <td>3</td><td>玩家</td>
+            <td>完成一次精彩的会话后，想把总结分享到小红书/B站</td>
+            <td>社交分享、引流</td>
+        </tr>
+        <tr>
+            <td>4</td><td>开发者</td>
+            <td>需要知道用户实际使用中遇到的问题，看会话日志排查</td>
+            <td>调试、优化</td>
+        </tr>
+    </table>
+</div>
+
+<!-- ====== 2. 数据模型设计 ====== -->
+<div class="section" id="sec2">
+    <h2><span class="num">2</span> 数据模型设计</h2>
+
+    <h3>2.1 新增模型总览</h3>
+    <table>
+        <tr><th>模型类</th><th>文件</th><th>说明</th><th>存储</th></tr>
+        <tr><td class="type">SessionRecord</td><td class="mono">Models/SessionRecord.cs</td><td>单次会话完整记录</td><td class="mono">History/{guid}.json</td></tr>
+        <tr><td class="type">SongResult</td><td class="mono">Models/SongResult.cs</td><td>单首歌曲的游戏结果</td><td>嵌入 SessionRecord</td></tr>
+        <tr><td class="type">PlayerProfile</td><td class="mono">Models/PlayerProfile.cs</td><td>玩家聚合统计数据</td><td class="mono">profile.json</td></tr>
+        <tr><td class="type">ExerciseSummary</td><td class="mono">Models/ExerciseSummary.cs</td><td>单次会话的运动汇总</td><td>嵌入 SessionRecord</td></tr>
+    </table>
+
+    <div class="note">
+        <strong>设计原则</strong>：采用「一 Session 一文件」策略，每个 SessionRecord 独立存储为一个 JSON 文件。
+        这样读取历史列表时只需扫描文件夹，无需解析大型文件。PlayerProfile 作为聚合缓存单独存储。
+    </div>
+
+    <h3>2.2 SessionRecord — 会话记录</h3>
+    <p>最核心的数据模型，记录一次随机歌单会话的完整信息。</p>
+    <table>
+        <tr><th style="width:160px">字段</th><th style="width:120px">类型</th><th style="width:60px">必填</th><th>说明</th></tr>
+        <tr><td class="mono">SessionId</td><td class="type">string (GUID)</td><td>✅</td><td>唯一会话标识，格式 <code>20260623-143052-a1b2c3d4</code></td></tr>
+        <tr><td class="mono">StartedAt</td><td class="type">DateTime</td><td>✅</td><td>会话开始时间（本地时间 ISO 8601）</td></tr>
+        <tr><td class="mono">EndedAt</td><td class="type">DateTime</td><td>✅</td><td>会话结束时间</td></tr>
+        <tr><td class="mono">TargetDurationMin</td><td class="type">int</td><td>✅</td><td>目标时长（分钟）</td></tr>
+        <tr><td class="mono">ActualDurationMin</td><td class="type">int</td><td>✅</td><td>实际时长（分钟，四舍五入）</td></tr>
+        <tr><td class="mono">PlaylistIds</td><td class="type">List&lt;string&gt;</td><td>✅</td><td>选中的播放列表 ID 列表</td></tr>
+        <tr><td class="mono">PlaylistNames</td><td class="type">List&lt;string&gt;</td><td>✅</td><td>选中的播放列表名称列表（用于分享展示）</td></tr>
+        <tr><td class="mono">TotalSongsInQueue</td><td class="type">int</td><td>✅</td><td>队列中的总歌曲数</td></tr>
+        <tr><td class="mono">TotalSongsPlayed</td><td class="type">int</td><td>✅</td><td>实际播放的歌曲数</td></tr>
+        <tr><td class="mono">SongResults</td><td class="type">List&lt;SongResult&gt;</td><td>✅</td><td>每首歌的详细结果（按播放顺序）</td></tr>
+        <tr><td class="mono">ExerciseSummary</td><td class="type">ExerciseSummary</td><td>✅</td><td>本次会话的运动数据汇总</td></tr>
+        <tr><td class="mono">Settings</td><td class="type">SessionSettingsSnapshot</td><td>✅</td><td>本次使用的设置快照（NPS范围/BPM/NoFail等）</td></tr>
+        <tr><td class="mono">Tags</td><td class="type">List&lt;string&gt;</td><td>❌</td><td>用户自定义标签（后续可扩展）</td></tr>
+    </table>
+
+    <h3>2.3 SongResult — 歌曲结果</h3>
+    <p>记录单首歌曲的游戏表现。数据来源：Beat Saber 的 <code>LevelCompletionResults</code>。</p>
+    <table>
+        <tr><th style="width:160px">字段</th><th style="width:120px">类型</th><th style="width:60px">必填</th><th>说明</th></tr>
+        <tr><td class="mono">SongName</td><td class="type">string</td><td>✅</td><td>歌曲名称</td></tr>
+        <tr><td class="mono">Author</td><td class="type">string</td><td>✅</td><td>作者/艺术家</td></tr>
+        <tr><td class="mono">LevelId</td><td class="type">string</td><td>✅</td><td>关卡 ID</td></tr>
+        <tr><td class="mono">Difficulty</td><td class="type">string</td><td>✅</td><td>难度名称（Expert+/Expert/Hard/Normal/Easy）</td></tr>
+        <tr><td class="mono">Score</td><td class="type">int</td><td>✅</td><td>总得分</td></tr>
+        <tr><td class="mono">MaxScore</td><td class="type">int</td><td>✅</td><td>理论最高分</td></tr>
+        <tr><td class="mono">Rank</td><td class="type">string</td><td>✅</td><td>评级（SS/S/A/B/C/D/E）</td></tr>
+        <tr><td class="mono">MaxCombo</td><td class="type">int</td><td>✅</td><td>最大连击数</td></tr>
+        <tr><td class="mono">MissedNotes</td><td class="type">int</td><td>✅</td><td>失误次数</td></tr>
+        <tr><td class="mono">BadCuts</td><td class="type">int</td><td>✅</td><td>差切次数</td></tr>
+        <tr><td class="mono">FullCombo</td><td class="type">bool</td><td>✅</td><td>是否全连</td></tr>
+        <tr><td class="mono">Accuracy</td><td class="type">float</td><td>✅</td><td>精度百分比（0-100）</td></tr>
+        <tr><td class="mono">NPS</td><td class="type">float</td><td>❌</td><td>所选难度的 NPS</td></tr>
+        <tr><td class="mono">SongDuration</td><td class="type">int</td><td>✅</td><td>歌曲时长（秒）</td></tr>
+    </table>
+
+    <div class="note">
+        <strong>数据来源</strong>：<code>LevelCompletionResults</code> 在关卡结束时由 Beat Saber 引擎提供，
+        我们通过 <code>StandardLevelScenesTransitionSetupDataSO.didFinishEvent</code> 回调获取。
+        当前代码已在 <code>PlaySessionManager.StartLevel()</code> 中注册了此回调。
+    </div>
+
+    <h3>2.4 ExerciseSummary — 运动数据汇总</h3>
+    <p>聚合一次会话中所有歌曲的运动数据。</p>
+    <table>
+        <tr><th style="width:160px">字段</th><th style="width:120px">类型</th><th>说明</th></tr>
+        <tr><td class="mono">TotalScore</td><td class="type">int</td><td>本次会话总得分</td></tr>
+        <tr><td class="mono">AverageAccuracy</td><td class="type">float</td><td>平均精度（%）</td></tr>
+        <tr><td class="mono">TotalNotesHit</td><td class="type">int</td><td>总击中音符数</td></tr>
+        <tr><td class="mono">TotalNotesMissed</td><td class="type">int</td><td>总失误数</td></tr>
+        <tr><td class="mono">TotalCombo</td><td class="type">int</td><td>总连击数（所有歌曲累加）</td></tr>
+        <tr><td class="mono">FullComboCount</td><td class="type">int</td><td>全连歌曲数量</td></tr>
+        <tr><td class="mono">BestRank</td><td class="type">string</td><td>最佳评级</td></tr>
+        <tr><td class="mono">HighestNPS</td><td class="type">float</td><td>最高 NPS 歌曲</td></tr>
+        <tr><td class="mono">TotalCuts</td><td class="type">int</td><td>总切击次数（概算）</td></tr>
+        <tr><td class="mono">ActiveMinutes</td><td class="type">int</td><td>实际活动时间（去掉等待和加载）</td></tr>
+    </table>
+
+    <h3>2.5 PlayerProfile — 玩家档案（聚合数据）</h3>
+    <p>汇总所有历史会话的统计数据，每次会话结束后更新。</p>
+    <table>
+        <tr><th style="width:160px">字段</th><th style="width:120px">类型</th><th>说明</th></tr>
+        <tr><td class="mono">TotalSessions</td><td class="type">int</td><td>总会话数</td></tr>
+        <tr><td class="mono">TotalPlayTimeMin</td><td class="type">int</td><td>总游戏时长（分钟）</td></tr>
+        <tr><td class="mono">TotalSongsPlayed</td><td class="type">int</td><td>总播放歌曲数</td></tr>
+        <tr><td class="mono">TotalScore</td><td class="type">long</td><td>累积总得分</td></tr>
+        <tr><td class="mono">BestAccuracy</td><td class="type">float</td><td>历史最佳精度</td></tr>
+        <tr><td class="mono">FullComboTotal</td><td class="type">int</td><td>历史全连总数</td></tr>
+        <tr><td class="mono">HighestRank</td><td class="type">string</td><td>历史最佳评级</td></tr>
+        <tr><td class="mono">FavoritePlaylist</td><td class="type">string</td><td>最常使用的播放列表名称</td></tr>
+        <tr><td class="mono">LastPlayedAt</td><td class="type">DateTime</td><td>最后游戏时间</td></tr>
+        <tr><td class="mono">FirstPlayedAt</td><td class="type">DateTime</td><td>首次游戏时间</td></tr>
+        <tr><td class="mono">DailyStreak</td><td class="type">int</td><td>连续游戏天数</td></tr>
+    </table>
+
+    <div class="note">
+        <strong>聚合方式</strong>：PlayerProfile 通过扫描 History 目录下的所有 SessionRecord JSON 文件来计算。
+        每次会话结束后，加载 profile.json → 累加最新会话数据 → 保存回 profile.json。
+        若 profile.json 不存在，则全量扫描 History 目录重建。
+    </div>
+
+    <h3>2.6 SessionSettingsSnapshot — 设置快照</h3>
+    <p>记录本次会话使用的设置参数，方便回顾当时的选择。</p>
+    <table>
+        <tr><th style="width:160px">字段</th><th style="width:120px">类型</th><th>说明</th></tr>
+        <tr><td class="mono">MinNPS</td><td class="type">float</td><td>NPS 下限</td></tr>
+        <tr><td class="mono">MaxNPS</td><td class="type">float</td><td>NPS 上限</td></tr>
+        <tr><td class="mono">NoFailEnabled</td><td class="type">bool</td><td>是否启用 No Fail</td></tr>
+        <tr><td class="mono">HudEnabled</td><td class="type">bool</td><td>是否启用 HUD</td></tr>
+        <tr><td class="mono">PlaylistCount</td><td class="type">int</td><td>选中的播放列表数量</td></tr>
+        <tr><td class="mono">AvailableSongCount</td><td class="type">int</td><td>可选歌曲总数（筛选前）</td></tr>
+    </table>
+
+    <div class="warning">
+        <strong>注意事项</strong>：SongResult 中的 <code>Score</code>、<code>Rank</code> 等字段依赖 Beat Saber 的
+        <code>LevelCompletionResults</code>。若玩家中途退出（如暂停后退出、游戏崩溃），
+        该歌曲的 SongResult 可能不完整。此时 <code>Failed</code> 标志应设为 true，
+        记录已获取到的部分数据（歌曲名、难度），其余字段使用默认值。
+    </div>
+</div>
+
+<!-- ====== 3. 存储方案 ====== -->
+<div class="section" id="sec3">
+    <h2><span class="num">3</span> 存储方案</h2>
+
+    <h3>3.1 存储路径</h3>
+    <pre>Beat Saber/
+└── UserData/
+    └── RandomPlaylistMod/          ← 模组专用数据目录
+        ├── History/                ← 会话记录（一条一文件）
+        │   ├── 20260623-143052-a1b2c3d4.json
+        │   ├── 20260624-091530-e5f6g7h8.json
+        │   └── ...
+        ├── profile.json            ← 玩家聚合档案
+        └── settings.json           ← （可选）模组设置持久化</pre>
+
+    <div class="note">
+        <strong>路径规范</strong>：Beat Saber 模组的标准数据存储位置是 <code>UserData/模组名/</code>。
+        通过 <code>IPA.Utilities.UnityGame.UserDataPath</code> 获取 UserData 目录的绝对路径，
+        然后拼接 <code>RandomPlaylistMod</code> 子目录。
+    </div>
+
+    <h3>3.2 文件命名规则</h3>
+    <table>
+        <tr><th>文件</th><th>命名格式</th><th>示例</th></tr>
+        <tr><td>会话记录</td><td class="mono">{yyyyMMdd}-{HHmmss}-{guid8}.json</td><td class="mono">20260623-143052-a1b2c3d4.json</td></tr>
+        <tr><td>玩家档案</td><td class="mono">profile.json</td><td>-</td></tr>
+        <tr><td>模组设置</td><td class="mono">settings.json</td><td>-</td></tr>
+    </table>
+
+    <h3>3.3 JSON 序列化</h3>
+    <p>使用 <strong>Newtonsoft.Json</strong>（由 BSIPA 提供，项目已有依赖）进行序列化。</p>
+    <pre>// 写入示例
+var json = JsonConvert.SerializeObject(record, Formatting.Indented);
+File.WriteAllText(filePath, json, Encoding.UTF8);
+
+// 读取示例
+var json = File.ReadAllText(filePath);
+var record = JsonConvert.DeserializeObject&lt;SessionRecord&gt;(json);
+
+// 配置：驼峰命名 + 忽略 null
+var settings = new JsonSerializerSettings {
+    ContractResolver = new CamelCasePropertyNamesContractResolver(),
+    NullValueHandling = NullValueHandling.Ignore,
+    DateTimeZoneHandling = DateTimeZoneHandling.Local
+};</pre>
+
+    <h3>3.4 数据管理策略</h3>
+    <table>
+        <tr><th>策略</th><th>说明</th></tr>
+        <tr><td><strong>自动清理</strong></td><td>保留最近 90 天的记录，超出自动删除（可配置）</td></tr>
+        <tr><td><strong>启动检查</strong></td><td>模组初始化时检查 History 目录是否存在，不存在则创建</td></tr>
+        <tr><td><strong>异常保护</strong></td><td>写入失败时记录日志，不抛异常影响游戏</td></tr>
+        <tr><td><strong>原子写入</strong></td><td>先写临时文件，成功后再 rename 为正式文件，防止写入中断导致数据损坏</td></tr>
+    </table>
+</div>
+
+<!-- ====== 4. 持久化流程 ====== -->
+<div class="section" id="sec4">
+    <h2><span class="num">4</span> 持久化流程</h2>
+
+    <h3>4.1 核心类设计：HistoryManager</h3>
+    <pre>/// &lt;summary&gt;
+/// 负责所有数据的持久化读写操作。
+/// 在 AppInstaller 中注册为 AsSingle()，全局可访问。
+/// &lt;/summary&gt;
+public class HistoryManager
+{
+    private string _dataPath;       // UserData/RandomPlaylistMod/
+    private string _historyPath;    // UserData/RandomPlaylistMod/History/
+    private string _profilePath;    // UserData/RandomPlaylistMod/profile.json
+
+    // ---- 会话记录 ----
+    void SaveSession(SessionRecord record);           // 保存一条会话记录
+    List&lt;SessionRecord&gt; LoadAllSessions();             // 加载所有历史会话
+    List&lt;SessionRecord&gt; LoadRecentSessions(int count); // 加载最近 N 条
+    SessionRecord LoadSession(string sessionId);       // 按 ID 加载
+    void DeleteSession(string sessionId);              // 删除指定会话
+
+    // ---- 玩家档案 ----
+    PlayerProfile LoadProfile();                       // 加载玩家档案
+    void UpdateProfile(PlayerProfile profile);         // 更新玩家档案
+
+    // ---- 模组设置 ----
+    void SaveSettings(SessionSettings settings);       // 保存模组设置
+    SessionSettings LoadSettings();                    // 加载模组设置
+
+    // ---- 清理 ----
+    void CleanOldRecords(int keepDays = 90);           // 清理旧记录
+}</pre>
+
+    <h3>4.2 数据保存时机</h3>
+    <div class="flow">
+        <span class="flow-step start">会话启动</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-step process">歌曲完成<br>(OnSongFinished)</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-step save">累加 SongResult<br>到内存缓存</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-step process">会话结束<br>(EndSession)</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-step save">构建 SessionRecord<br>写入 JSON 文件</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-step save">更新 PlayerProfile<br>写入 profile.json</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-step end">完成</span>
+    </div>
+
+    <div class="note">
+        <strong>关键设计</strong>：
+        <ol style="margin-left:20px; font-size:14px; line-height:1.8;">
+            <li>会话进行中，SongResult 先存入内存列表（<code>PlaySessionManager._currentResults</code>）</li>
+            <li>歌曲失败或中途退出时，仍尝试保存已有的 SongResult（标记 Failed=true）</li>
+            <li>会话结束时一次性构建 SessionRecord 并写入 JSON</li>
+            <li>JSON 写入在独立线程中执行（<code>Task.Run</code>），不阻塞 Unity 主线程</li>
+            <li>PlayerProfile 的更新在 SessionRecord 写入成功后触发</li>
+        </ol>
+    </div>
+
+    <h3>4.3 现有代码修改点</h3>
+    <table>
+        <tr><th>文件</th><th>修改内容</th></tr>
+        <tr>
+            <td class="mono">PlaySessionManager.cs</td>
+            <td>
+                1) 新增字段 <code>List&lt;SongResult&gt; _currentResults</code>（内存缓存）<br>
+                2) <code>OnSongFinished()</code> 中提取 <code>LevelCompletionResults</code> 构建 SongResult 并加入列表<br>
+                3) <code>EndSession()</code> 中调用 <code>HistoryManager.SaveSession()</code>
+            </td>
+        </tr>
+        <tr>
+            <td class="mono">Plugin.cs</td>
+            <td>
+                在 <code>AppInstaller</code> 中注册 <code>HistoryManager.AsSingle()</code>
+            </td>
+        </tr>
+        <tr>
+            <td class="mono">RandomPlaylistUI.cs</td>
+            <td>
+                （可选）<code>Construct()</code> 中调用 <code>LoadSettings()</code> 恢复上次设置
+            </td>
+        </tr>
+    </table>
+
+    <h3>4.4 回调数据提取</h3>
+    <p>当前 <code>StartLevel()</code> 中的回调需要增强，以捕获 <code>LevelCompletionResults</code>：</p>
+    <pre>// 现有代码（PlaySessionManager.StartLevel）
+_starter.didFinishEvent += (results, __) => {
+    // results 类型：LevelCompletionResultsWrapper → LevelCompletionResults
+    var songResult = new SongResult {
+        SongName = level.songName,
+        Author = level.levelAuthorName,
+        LevelId = level.levelID,
+        Difficulty = difficulty.ToString(),
+        Score = results.levelCompletionResults.modifiedScore,
+        MaxScore = results.levelCompletionResults.maxModifiedScore,
+        Rank = results.levelCompletionResults.rank.ToString(),
+        MaxCombo = results.levelCompletionResults.maxCombo,
+        MissedNotes = results.levelCompletionResults.missedNotes,
+        BadCuts = results.levelCompletionResults.badCuts,
+        FullCombo = results.levelCompletionResults.fullCombo,
+        Accuracy = CalculateAccuracy(results),
+        // ... 其余字段
+    };
+    _currentResults.Add(songResult);
+    OnSongFinished();
+};</pre>
+</div>
+
+<!-- ====== 5. 分享功能设计 ====== -->
+<div class="section" id="sec5">
+    <h2><span class="num">5</span> 分享功能设计</h2>
+
+    <h3>5.1 定义：什么是「双次应用分享」</h3>
+    <table>
+        <tr><th style="width:80px">层级</th><th>分享场景</th><th>说明</th></tr>
+        <tr>
+            <td><strong>第一层</strong></td>
+            <td>游戏内会话总结</td>
+            <td>会话结束后，在菜单界面弹出一个总结面板，展示本次会话的核心数据<br>
+            （打了多少歌、得分、精度、全连数等），支持截图保存</td>
+        </tr>
+        <tr>
+            <td><strong>第二层</strong></td>
+            <td>外部平台分享</td>
+            <td>将会话总结生成一张精美的图片（类似之前生成的小红书图片），<br>
+            用户可保存图片后分享到 B站、小红书、Discord 等平台</td>
+        </tr>
+    </table>
+
+    <div class="note">
+        <strong>「双次应用」解释</strong>：
+        <ol style="margin-left:20px; font-size:14px; line-height:1.8;">
+            <li>第一次应用：游戏内数据持久化（历史记录查看、统计分析）</li>
+            <li>第二次应用：数据导出为可视化内容（分享卡片、社交传播）</li>
+        </ol>
+        同一份数据，两种使用场景 —— 个人回顾 + 社交分享。
+    </div>
+
+    <h3>5.2 分享内容设计</h3>
+
+    <h4>分享卡片包含信息：</h4>
+    <table>
+        <tr><th style="width:80px">区域</th><th>内容</th><th>说明</th></tr>
+        <tr><td>头部</td><td>模组名称 + 版本号 + 日期</td><td>品牌标识</td></tr>
+        <tr><td>核心数据</td><td>游戏时长 / 歌曲数 / 总得分 / 全连数</td><td>四大关键指标</td></tr>
+        <tr><td>详细数据</td><td>精度 / 最高NPS / 最佳评级 / 失误数</td><td>补充数据</td></tr>
+        <tr><td>歌单信息</td><td>使用的播放列表名称</td><td>展示歌曲来源</td></tr>
+        <tr><td>歌曲亮点</td><td>最高分歌曲 + 全连歌曲列表</td><td>个性化内容</td></tr>
+        <tr><td>底部</td><td>模组下载链接 / 二维码</td><td>引流入口</td></tr>
+    </table>
+
+    <h4>分享卡片样式（参考之前生成的小红书图片）：</h4>
+    <ul style="margin-left:20px; color:var(--text); font-size:14px; line-height:2;">
+        <li>1080×1440 竖版布局</li>
+        <li>紫色渐变背景（保持品牌一致性）</li>
+        <li>数据以卡片形式展示，大号数字突出关键指标</li>
+        <li>底部包含 GitHub 链接和二维码</li>
+    </ul>
+
+    <h3>5.3 分享交互流程</h3>
+    <div class="flow">
+        <span class="flow-step start">会话结束</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-step process">生成 SessionRecord</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-step process">弹出总结面板<br>(SummaryView)</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-step save">用户选择<br>"生成分享图"</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-step process">生成分享图片<br>(HTML→PNG)</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-step end">保存到本地<br>/分享到外部</span>
+    </div>
+
+    <h3>5.4 新增 UI 组件</h3>
+
+    <h4>SessionSummaryView — 游戏内总结面板</h4>
+    <table>
+        <tr><th>项目</th><th>说明</th></tr>
+        <tr><td>类型</td><td>BSMLAutomaticViewController</td></tr>
+        <tr><td>触发</td><td>会话结束后自动弹出（PresentViewController）</td></tr>
+        <tr><td>内容</td><td>展示 SessionRecord 的核心统计</td></tr>
+        <tr><td>按钮</td><td>[生成分享图] [查看历史] [关闭]</td></tr>
+    </table>
+
+    <h4>HistoryView — 历史记录浏览</h4>
+    <table>
+        <tr><th>项目</th><th>说明</th></tr>
+        <tr><td>类型</td><td>BSMLAutomaticViewController</td></tr>
+        <tr><td>触发</td><td>从总结面板的 [查看历史] 按钮进入，或在菜单中新增入口</td></tr>
+        <tr><td>内容</td><td>列表展示最近 N 条会话记录，每条显示日期/时长/歌曲数/得分</td></tr>
+        <tr><td>按钮</td><td>点击单条记录 → 展开详情 → [生成分享图] [删除]</td></tr>
+    </table>
+
+    <div class="warning">
+        <strong>分享图片生成方案</strong>：与之前生成小红书图片的方式相同——
+        使用 HTML 模板 + Edge headless 截图生成 PNG。
+        由于 BS 运行中无法启动外部浏览器 headless，
+        图片生成放在会话结束后批量生成，或提示用户在下次启动时生成。
+        初期方案：会话结束时生成 HTML 模板文件，用户可在游戏外用浏览器打开截图。
+    </div>
+
+    <h3>5.5 分享 HTML 模板设计</h3>
+    <pre>// 模板文件路径：UserData/RandomPlaylistMod/Share/{sessionId}.html
+// 在 EndSession 时自动生成，用户可用浏览器打开截图
+
+public class ShareImageGenerator
+{
+    // 生成分享 HTML 文件
+    string GenerateShareHtml(SessionRecord record);
+
+    // （可选）调用 headless 浏览器自动截图
+    // 注意：游戏中可能无法启动外部进程，需要异步处理
+    Task&lt;string&gt; GenerateShareImageAsync(SessionRecord record);
+}</pre>
+</div>
+
+<!-- ====== 6. 状态流转 ====== -->
+<div class="section" id="sec6">
+    <h2><span class="num">6</span> 状态流转</h2>
+
+    <h3>6.1 完整状态机</h3>
+    <pre>┌─────────────────────────────────────────────────────────┐
+│                     RandomPlaylistMod                      │
+│                      完整状态流转                          │
+├─────────────────────────────────────────────────────────┤
+│                                                           │
+│  [菜单空闲]                                               │
+│     │                                                     │
+│     ├─ 选择歌单/设置参数 ──→ [设置中]                     │
+│     │                          │                          │
+│     │                    点击 [Start]                     │
+│     │                          │                          │
+│     │                          ↓                          │
+│     │                     [会话运行中]                     │
+│     │                     ┌────┴────┐                     │
+│     │                     │ 歌曲播放 │ ◄── 循环           │
+│     │                     └────┬────┘                     │
+│     │                          │                          │
+│     │               ┌──────────┼──────────┐               │
+│     │               │          │          │               │
+│     │         歌曲完成    队列耗尽    手动结束              │
+│     │               │     + 计时未到    │                  │
+│     │               │          │          │               │
+│     │         累加Result  重新打乱    EndSession            │
+│     │               ↓          │          ↓               │
+│     │          下一首 ←────────┘    ┌──────────────┐      │
+│     │                               │ 1. 构建       │      │
+│     │                               │  SessionRecord│     │
+│     │                               │ 2. 写入JSON   │      │
+│     │                               │ 3. 更新       │      │
+│     │                               │  PlayerProfile│     │
+│     │                               │ 4. 生成       │      │
+│     │                               │  ShareHTML    │      │
+│     │                               └──────┬───────┘      │
+│     │                                      │              │
+│     │                                      ↓              │
+│     │                               [会话总结面板]         │
+│     │                               ┌───┴───┐             │
+│     │                               │ 查看   │             │
+│     │                               │ 历史   │             │
+│     │                               └───┬───┘             │
+│     │                                   │                 │
+│     │                                   ↓                 │
+│     │                              [历史列表]              │
+│     │                              ┌───┴───┐              │
+│     │                              │ 查看   │              │
+│     │                              │ 详情   │              │
+│     │                              └───┬───┘              │
+│     │                                  │                  │
+│     │                                  ↓                  │
+│     │                             [生成分享图]             │
+│     │                                  │                  │
+│     │                          ┌───────┴───────┐          │
+│     │                          │               │          │
+│     │                      保存PNG        返回菜单          │
+│     │                          │               │          │
+│     │                          ↓               ↓          │
+│     │                  [外部平台分享]     [菜单空闲]         │
+│     │                                                    │
+│     └─────────────← 返回 ────────────────────────────────┘
+└─────────────────────────────────────────────────────────┘</pre>
+
+    <h3>6.2 数据生命周期</h3>
+    <table>
+        <tr><th>阶段</th><th>数据操作</th><th>涉及类</th></tr>
+        <tr>
+            <td>会话前</td>
+            <td>加载 settings.json 恢复上次设置</td>
+            <td class="mono">HistoryManager</td>
+        </tr>
+        <tr>
+            <td>会话中</td>
+            <td>每首歌曲完成后，SongResult 加入内存列表</td>
+            <td class="mono">PlaySessionManager</td>
+        </tr>
+        <tr>
+            <td>会话结束</td>
+            <td>构建 SessionRecord → 写入 JSON → 更新 profile.json → 生成 share HTML</td>
+            <td class="mono">HistoryManager<br>ShareImageGenerator</td>
+        </tr>
+        <tr>
+            <td>浏览历史</td>
+            <td>扫描 History 目录 → 加载记录列表</td>
+            <td class="mono">HistoryManager</td>
+        </tr>
+        <tr>
+            <td>查看详情</td>
+            <td>加载单个 JSON → 展示完整 SessionRecord</td>
+            <td class="mono">HistoryManager</td>
+        </tr>
+        <tr>
+            <td>清理</td>
+            <td>启动时检查 → 删除 90 天前的记录</td>
+            <td class="mono">HistoryManager.CleanOldRecords()</td>
+        </tr>
+    </table>
+</div>
+
+<!-- ====== 7. 文件变更清单 ====== -->
+<div class="section" id="sec7">
+    <h2><span class="num">7</span> 文件变更清单</h2>
+
+    <h3>7.1 新增文件</h3>
+    <table>
+        <tr><th>文件</th><th>路径</th><th>说明</th></tr>
+        <tr><td class="mono">SessionRecord.cs</td><td>Models/</td><td>会话记录模型</td></tr>
+        <tr><td class="mono">SongResult.cs</td><td>Models/</td><td>歌曲结果模型</td></tr>
+        <tr><td class="mono">ExerciseSummary.cs</td><td>Models/</td><td>运动汇总模型</td></tr>
+        <tr><td class="mono">PlayerProfile.cs</td><td>Models/</td><td>玩家档案模型</td></tr>
+        <tr><td class="mono">SessionSettingsSnapshot.cs</td><td>Models/</td><td>设置快照模型</td></tr>
+        <tr><td class="mono">HistoryManager.cs</td><td>Managers/</td><td>数据持久化管理器</td></tr>
+        <tr><td class="mono">ShareImageGenerator.cs</td><td>Utils/</td><td>分享图片生成器</td></tr>
+        <tr><td class="mono">SessionSummaryView.cs</td><td>UI/</td><td>游戏内总结面板控制器</td></tr>
+        <tr><td class="mono">SessionSummaryView.bsml</td><td>UI/Views/</td><td>总结面板布局</td></tr>
+        <tr><td class="mono">HistoryView.cs</td><td>UI/</td><td>历史记录浏览控制器</td></tr>
+        <tr><td class="mono">HistoryView.bsml</td><td>UI/Views/</td><td>历史记录布局</td></tr>
+        <tr><td class="mono">share-template.html</td><td>Resources/</td><td>分享图片 HTML 模板</td></tr>
+    </table>
+
+    <h3>7.2 修改文件</h3>
+    <table>
+        <tr><th>文件</th><th>变更说明</th></tr>
+        <tr><td class="mono">PlaySessionManager.cs</td><td>新增 <code>_currentResults</code> 列表；<code>OnSongFinished</code> 提取 LevelCompletionResults；<code>EndSession</code> 调用 HistoryManager 写入</td></tr>
+        <tr><td class="mono">Plugin.cs</td><td>AppInstaller 中注册 <code>HistoryManager</code> 和 <code>ShareImageGenerator</code>；MenuInstaller 中注册新 ViewController</td></tr>
+        <tr><td class="mono">RandomPlaylistUI.cs</td><td>（可选）恢复上次设置；会话结束后弹出总结面板</td></tr>
+        <tr><td class="mono">RandomPlaylistMod.csproj</td><td>添加新文件的编译引用和 BSML EmbeddedResource</td></tr>
+        <tr><td class="mono">manifest.json</td><td>版本号 bump</td></tr>
+    </table>
+</div>
+
+<!-- ====== 8. 实施计划 ====== -->
+<div class="section" id="sec8">
+    <h2><span class="num">8</span> 实施计划</h2>
+
+    <h3>8.1 开发阶段</h3>
+    <table>
+        <tr><th style="width:60px">阶段</th><th>任务</th><th>预估</th><th>产出</th></tr>
+        <tr>
+            <td><strong>S1</strong></td>
+            <td>数据模型定义</td>
+            <td>小</td>
+            <td>5 个新 Model 类，编译通过</td>
+        </tr>
+        <tr>
+            <td><strong>S2</strong></td>
+            <td>HistoryManager 实现</td>
+            <td>中</td>
+            <td>SessionRecord 的保存/读取/列表功能</td>
+        </tr>
+        <tr>
+            <td><strong>S3</strong></td>
+            <td>PlaySessionManager 集成</td>
+            <td>中</td>
+            <td>SongResult 捕获 + EndSession 写入</td>
+        </tr>
+        <tr>
+            <td><strong>S4</strong></td>
+            <td>PlayerProfile 聚合</td>
+            <td>小</td>
+            <td>profile.json 的创建和更新逻辑</td>
+        </tr>
+        <tr>
+            <td><strong>S5</strong></td>
+            <td>总结面板 UI</td>
+            <td>中</td>
+            <td>SessionSummaryView + BSML 布局</td>
+        </tr>
+        <tr>
+            <td><strong>S6</strong></td>
+            <td>历史记录 UI</td>
+            <td>中</td>
+            <td>HistoryView + BSML 列表</td>
+        </tr>
+        <tr>
+            <td><strong>S7</strong></td>
+            <td>分享图片生成</td>
+            <td>中</td>
+            <td>HTML模板 + ShareImageGenerator</td>
+        </tr>
+        <tr>
+            <td><strong>S8</strong></td>
+            <td>集成测试 + 发布</td>
+            <td>小</td>
+            <td>测试用例 + release</td>
+        </tr>
+    </table>
+
+    <h3>8.2 风险评估</h3>
+    <table>
+        <tr><th>风险</th><th>影响</th><th>缓解措施</th></tr>
+        <tr>
+            <td>LevelCompletionResults 字段在当前 BS 版本中不可用/名称变更</td>
+            <td>高</td>
+            <td>使用反射获取，try-catch 保护，缺失字段用默认值</td>
+        </tr>
+        <tr>
+            <td>JSON 写入导致 I/O 阻塞主线程</td>
+            <td>中</td>
+            <td>使用 Task.Run 异步写入，不等待结果</td>
+        </tr>
+        <tr>
+            <td>大量历史记录文件导致启动扫描慢</td>
+            <td>低</td>
+            <td>90天自动清理 + 启动时仅扫描文件名列表（不解析内容）</td>
+        </tr>
+        <tr>
+            <td>分享图片生成需要 HTML→PNG，游戏中无法调用 headless 浏览器</td>
+            <td>中</td>
+            <td>初版生成 HTML 文件由用户手动截图；后续可集成内置截图方案</td>
+        </tr>
+    </table>
+
+    <div class="note" style="margin-top: 24px; border-left-color: #3fb950;">
+        <strong>设计文档状态：已完成 ✅</strong><br>
+        Phase 2 全部 8 个开发阶段已完成，编译通过（0 错误 0 警告），版本号 2.0.0。
+    </div>
+</div>
+
+</div>
+</body>
+</html>

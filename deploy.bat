@@ -56,9 +56,9 @@ echo   - RandomPlaylistMod.pdb
 echo.
 echo Checking required dependencies...
 echo.
-if not exist "r\SiraUtil.dll" (
-    echo   WARNING: SiraUtil.dll not found in 1.40.8!
-)
+@REM if not exist "r\SiraUtil.dll" (
+@REM     echo   WARNING: SiraUtil.dll not found in 1.40.8!
+@REM )
 if not exist "F:\paly\BSManager\BSInstances\1.40.8\Plugins\BSML.dll" (
     echo   WARNING: BSML.dll not found in 1.40.8!
 )

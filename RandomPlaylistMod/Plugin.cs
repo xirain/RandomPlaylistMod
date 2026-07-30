@@ -49,6 +49,8 @@ namespace RandomPlaylistMod
             Container.Bind<SongSelector>().AsSingle();
             Container.Bind<TimeManager>().AsSingle();
             Container.Bind<PlaySessionManager>().AsSingle();
+            // 游玩中按 Y/B 收藏当前歌曲到固定歌单
+            Container.Bind<FavoriteManager>().AsSingle();
             // Phase 2: 数据持久化与分享
             Container.Bind<HistoryManager>().AsSingle();
             Container.Bind<ShareImageGenerator>().AsSingle();
@@ -88,6 +90,12 @@ namespace RandomPlaylistMod
             Plugin.Log.Info("GameInstaller: Installing bindings...");
 
             Container.Bind<SessionHUDView>()
+                .FromNewComponentOnNewGameObject()
+                .AsSingle()
+                .NonLazy();
+
+            // 游玩中监听手柄 Y/B 键，按下即收藏当前歌曲
+            Container.Bind<GameplayFavoriteInput>()
                 .FromNewComponentOnNewGameObject()
                 .AsSingle()
                 .NonLazy();
