@@ -66,11 +66,17 @@ namespace RandomPlaylistMod.Models
     /// </summary>
     public class SessionSettingsSnapshot
     {
-        /// <summary>NPS 下限</summary>
+        /// <summary>NPS 下限（所选频段包围盒，仅用于展示）</summary>
         public float MinNPS { get; set; }
 
-        /// <summary>NPS 上限</summary>
+        /// <summary>NPS 上限（所选频段包围盒，仅用于展示）</summary>
         public float MaxNPS { get; set; }
+
+        /// <summary>是否不按 NPS 筛选（Any）</summary>
+        public bool NpsAny { get; set; } = true;
+
+        /// <summary>选中的具体频段标签，如 ["4-7","8-9"]；Any 时为空</summary>
+        public List<string> NpsBandLabels { get; set; } = new List<string>();
 
         /// <summary>是否启用 No Fail</summary>
         public bool NoFailEnabled { get; set; }

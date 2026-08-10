@@ -3,6 +3,7 @@ using NUnit.Framework;
 using RandomPlaylistMod.Tests.TestManagers;
 using RandomPlaylistMod.Tests.TestModels;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace RandomPlaylistMod.Tests
 {

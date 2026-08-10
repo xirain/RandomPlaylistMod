@@ -854,6 +854,50 @@ UserData/RandomPlaylistMod/
 | `RandomPlaylistMod/UI/GameplayFavoriteInput.cs` | 修改 | `EnsureToast` 改为 `ScreenSpaceOverlay` 高排序层，修复提示被 HUD 遮挡不可见 |
 | `RandomPlaylistMod/UI/GameplayFavoriteInput.cs` | 修改 | Update 长按计时容忍抖动 + 短按 4 帧防抖，修复长按 B 几乎不触发的问题 |
 
+---
+
+## [M-2.2.0] Level (NPS) 多选改造 — 2026-08-07
+
+**目标**：将原来的 NPS 互斥单选（Any / -6 / 6-9 / 9+）改为多选 checkbox 并集过滤，保留 Any 选项，具体档位改为 4-7 / 7-8 / 8-9 / 9+，默认选中 4-7。
+
+**新增文件**
+| 文件 | 说明 |
+| --- | --- |
+| `RandomPlaylistMod/Models/LevelBand.cs` | 频段定义 `All`（Any/4-7/7-8/8-9/9+，含 Min/Max/IsAny/Label）；`InBands(nps, bands, any)` 并集判定；`ToRanges(labels)`、`BoundingBox(bands)` 辅助 |
+
+**修改文件**
+| 文件 | 改动 |
+| --- | --- |
+| `RandomPlaylistMod/Models/SessionSettings.cs` | 新增 `NpsAny`（默认 true）与 `NpsBands`（默认空 List<(float,float)>）；保留 MinNps/MaxNps 作包围盒 |
+| `RandomPlaylistMod/Models/SessionRecord.cs` | Snapshot 新增 `NpsAny` 与 `NpsBandLabels`（List<string>，避免 ValueTuple 序列化问题） |
+| `RandomPlaylistMod/Managers/SongSelector.cs` | 主方法改为 `SelectSongsForDuration(songs, minutes, bands, any)` 用 `LevelBand.InBands`；保留 2 参数(any:true) 与 4 参数单区间重载向后兼容 |
+| `RandomPlaylistMod/Managers/PlaySessionManager.cs` | 新增 `NpsAny`/`NpsBands` 属性与 `IsNpsAllowed(nps)`；难度选择按频段并集过滤；StartSession 传播频段；快照填充 NpsAny/NpsBandLabels；ModVersion 改为 2.2.0 |
+| `RandomPlaylistMod/UI/RandomPlaylistUI.cs` | 5 个 checkbox UIValue（BandAny/Band47/Band78/Band89/Band9Plus）+ NpsFilterText；`OnBandChanged` 互斥/全取消回退默认 4-7；`RecalcNpsFilter`/`NotifyBandProperties` 同步到 PlaySessionManager |
+| `RandomPlaylistMod/UI/Views/RandomPlaylistView.bsml` | Row 2 替换为 5 个 `<checkbox>` + `{nps-filter-text}` 文本 |
+| `RandomPlaylistMod/UI/HistoryView.cs` | 历史项按 NpsAny / NpsBandLabels / 包围盒显示 |
+| `RandomPlaylistMod/Managers/ShareImageGenerator.cs` | 分享图按 NpsAny/NpsBandLabels/包围盒显示 NPS |
+| `RandomPlaylistMod.Tests/TestManagers/SongSelector.cs` | 测试副本补齐 3 个 SelectSongsForDuration 重载（含 `using System.Linq`） |
+| `RandomPlaylistMod.Tests/SongSelectorTests.cs` | 补 `using System.Linq` |
+| `manifest.json` / `RandomPlaylistMod.csproj` | 版本 2.1.0 → 2.2.0 |
+
+**验证**
+- `dotnet build -c Release`：0 error（仅 1 个无关的 FindObjectOfType 弃用警告）
+- `dotnet test`：36/36 全过（TEST=0）
+
+**待办（未执行，需用户确认）**
+- 改动尚未 `git commit` / 打 tag / 建 GitHub Release
+- 用户拒绝自动部署到游戏实例（F:\paly\...\1.44.0\Plugins），部署待手动确认
+- 注：部署时切勿将 manifest.json 复制成游戏内 `RandomPlaylistMod.manifest`（会导致 IPA 重复插件、丢弃含代码的 dll）
+
+---
+
+## [DOC] B 站脚本 / 口播稿 — 2026-08-07
+
+| 文件 | 说明 |
+| --- | --- |
+| `docs/bilibili_script_v2.1.0.md` | B 站 2-3 分钟分镜脚本，含链接汇总（含 PlaylistManager 1.44 fork） |
+| `docs/bilibili_script_v2.1.0_口播稿.md` | 同内容纯口播稿（无分镜标注） |
+
 
 
 

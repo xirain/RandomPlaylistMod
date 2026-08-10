@@ -125,7 +125,7 @@ namespace RandomPlaylistMod.UI
                     $"Best Rank: {s.ExerciseSummary.BestRank ?? "-"}",
                     $"Full Combos: {s.ExerciseSummary.FullComboCount}",
                     $"Playlists: {string.Join(", ", (s.PlaylistNames ?? new List<string>()).Take(5))}",
-                    $"NPS Range: {s.Settings.MinNPS:F1} ~ {s.Settings.MaxNPS:F1}",
+                    $"NPS: {(s.Settings.NpsAny ? "Any" : (s.Settings.NpsBandLabels != null && s.Settings.NpsBandLabels.Count > 0 ? string.Join(" / ", s.Settings.NpsBandLabels) : $"{s.Settings.MinNPS:F1} ~ {s.Settings.MaxNPS:F1}"))}",
                     $"NoFail: {(s.Settings.NoFailEnabled ? "ON" : "OFF")}"
                 };
                 return string.Join("\n", lines);

@@ -10,16 +10,20 @@ namespace RandomPlaylistMod.Managers
     {
         private readonly Random _random = new Random();
 
-        public List<SongInfo> SelectSongsForDuration(List<SongInfo> songs, int targetMinutes, float minNPS = 0f, float maxNPS = 99f)
+        /// <summary>
+        /// 按关卡频段（多选并集）筛选歌曲。any=true 或 NPS 未知时不做筛选。
+        /// </summary>
+        public List<SongInfo> SelectSongsForDuration(List<SongInfo> songs, int targetMinutes, List<(float min, float max)> bands, bool any)
         {
             if (songs == null || songs.Count == 0)
                 return new List<SongInfo>();
 
-            // NPS 过滤：NPS=-1(未知/未缓存)始终通过，已知NPS按区间筛选
-            var filtered = songs.Where(s => s.NPS < 0f || (s.NPS >= minNPS && s.NPS <= maxNPS)).ToList();
+            // NPS 过滤：NPS=-1(未知/未缓存)始终通过；已知 NPS 需落在任一所选频段内
+            var filtered = songs.Where(s => LevelBand.InBands(s.NPS, bands, any)).ToList();
             if (filtered.Count == 0)
             {
-                Plugin.Log.Warn($"SongSelector: No songs in NPS range {minNPS:F1}-{maxNPS:F1}, using all songs");
+                var desc = any ? "Any" : string.Join("/", bands.Select(b => $"{b.min:F0}-{b.max:F0}"));
+                Plugin.Log.Warn($"SongSelector: No songs in NPS bands [{desc}], using all songs");
                 filtered = new List<SongInfo>(songs);
             }
 
@@ -60,6 +64,26 @@ namespace RandomPlaylistMod.Managers
 
             Plugin.Log.Info($"SongSelector: Selected {selected.Count} songs, total duration {currentDuration / 60f:F1} min (target: {targetMinutes} min)");
             return selected;
+        }
+
+        /// <summary>
+        /// 向后兼容：仅按时长筛选，不做 NPS 过滤（any=true）。
+        /// </summary>
+        public List<SongInfo> SelectSongsForDuration(List<SongInfo> songs, int targetMinutes)
+        {
+            return SelectSongsForDuration(songs, targetMinutes, new List<(float, float)>(), any: true);
+        }
+
+        /// <summary>
+        /// 向后兼容：单区间筛选（any=false 时使用 [minNPS, maxNPS] 这一个频段）。
+        /// </summary>
+        public List<SongInfo> SelectSongsForDuration(List<SongInfo> songs, int targetMinutes, float minNPS = 0f, float maxNPS = 99f)
+        {
+            var bands = (minNPS <= 0f && maxNPS >= 99f)
+                ? new List<(float, float)>()
+                : new List<(float, float)> { (minNPS, maxNPS) };
+            bool any = (minNPS <= 0f && maxNPS >= 99f);
+            return SelectSongsForDuration(songs, targetMinutes, bands, any);
         }
 
         public List<SongInfo> ShuffleSongs(List<SongInfo> songs)

@@ -296,28 +296,20 @@ namespace RandomPlaylistMod.UI
             Plugin.Log.Info("[DEBUG] NPS preset: Any");
         }
 
-        [UIAction("nps-relax")]
-        public void SetNpsRelax()
+        [UIAction("nps-38")]
+        public void SetNps38()
         {
-            MinNPS = 0f;
-            MaxNPS = 6f;
-            Plugin.Log.Info("[DEBUG] NPS preset: <6 (Relax)");
+            MinNPS = 3f;
+            MaxNPS = 8f;
+            Plugin.Log.Info("[DEBUG] NPS preset: 3-8");
         }
 
-        [UIAction("nps-mid")]
-        public void SetNpsMid()
-        {
-            MinNPS = 6f;
-            MaxNPS = 9f;
-            Plugin.Log.Info("[DEBUG] NPS preset: 6-9 (Hard/Expert)");
-        }
-
-        [UIAction("nps-fast")]
+        [UIAction("nps-8plus")]
         public void SetNpsFast()
         {
-            MinNPS = 9f;
+            MinNPS = 8f;
             MaxNPS = 99f;
-            Plugin.Log.Info("[DEBUG] NPS preset: 9+ (Expert+)");
+            Plugin.Log.Info("[DEBUG] NPS preset: 8+");
         }
 
         [UIAction("select-all")]

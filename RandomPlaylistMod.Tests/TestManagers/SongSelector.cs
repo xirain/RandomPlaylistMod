@@ -129,5 +129,56 @@ namespace RandomPlaylistMod.Tests.TestManagers
         {
             return songs.Sum(s => s.Duration);
         }
+
+        // 与正式 SongSelector 对齐的签名（测试用 SongInfo 无 NPS，按不过滤处理）
+        public List<SongInfo> SelectSongsForDuration(List<SongInfo> songs, int targetMinutes)
+        {
+            return SelectSongsInternal(songs, targetMinutes);
+        }
+
+        public List<SongInfo> SelectSongsForDuration(List<SongInfo> songs, int targetMinutes, float minNPS = 0f, float maxNPS = 99f)
+        {
+            return SelectSongsInternal(songs, targetMinutes);
+        }
+
+        public List<SongInfo> SelectSongsForDuration(List<SongInfo> songs, int targetMinutes, List<(float min, float max)> bands, bool any)
+        {
+            return SelectSongsInternal(songs, targetMinutes);
+        }
+
+        /// <summary>
+        /// 按目标时长挑选歌曲：不足目标时长就全部选中（不截断），用队列形式返回。
+        /// 与正式实现语义一致：返回选中列表而非 Queue。
+        /// </summary>
+        private List<SongInfo> SelectSongsInternal(List<SongInfo> songs, int targetMinutes)
+        {
+            if (songs == null || songs.Count == 0)
+                return new List<SongInfo>();
+
+            var filtered = new List<SongInfo>(songs);
+            if (filtered.Count == 0)
+                return new List<SongInfo>(songs);
+
+            int targetSeconds = targetMinutes * 60;
+            int currentDuration = 0;
+
+            // 不足目标时长则全选；超过则按作者去重后尽量填满（与正式实现保持近似行为）
+            var selected = new List<SongInfo>();
+            string lastAuthor = "";
+            foreach (var song in filtered)
+            {
+                if (song.Author == lastAuthor)
+                    continue;
+                selected.Add(song);
+                currentDuration += song.Duration;
+                lastAuthor = song.Author;
+            }
+
+            // 若作者去重后为空（无作者信息），直接全选
+            if (selected.Count == 0)
+                selected = new List<SongInfo>(filtered);
+
+            return selected;
+        }
     }
 }

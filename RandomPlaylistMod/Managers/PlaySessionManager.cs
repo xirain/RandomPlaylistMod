@@ -67,8 +67,16 @@ namespace RandomPlaylistMod.Managers
         // NPS 筛选范围（由 UI 在 StartSession 前设置）
         public float MinNPS { get; set; } = 0f;
         public float MaxNPS { get; set; } = 99f;
+        /// <summary>是否不按 NPS 筛选（Any）</summary>
+        public bool NpsAny { get; set; } = true;
+        /// <summary>选中的具体频段（min,max 列表）；NpsAny=true 时不使用</summary>
+        public List<(float min, float max)> NpsBands { get; set; } = new List<(float, float)>();
         public bool NoFailEnabled { get; set; } = false;
         public bool HudEnabled { get; set; } = true;
+
+        /// <summary>判定 NPS 是否通过当前筛选（Any 或未知时通过；否则需落在任一频段内）</summary>
+        private bool IsNpsAllowed(float nps)
+            => LevelBand.InBands(nps, NpsBands, NpsAny);
 
         private static SongDetails GetSongDetails()
         {
@@ -114,11 +122,11 @@ namespace RandomPlaylistMod.Managers
                 Plugin.Log.Warn($"PlaySessionManager: Error getting difficulty NPS: {ex.Message}");
             }
 
-            // 如果有 NPS 数据，在符合范围的难度中随机选一个
+            // 如果有 NPS 数据，在符合筛选的难度中随机选一个
             if (difficultyNPS != null && difficultyNPS.Count > 0)
             {
                 var matching = availableDifficulties
-                    .Where(d => difficultyNPS.ContainsKey(d) && difficultyNPS[d] >= MinNPS && difficultyNPS[d] <= MaxNPS)
+                    .Where(d => difficultyNPS.ContainsKey(d) && IsNpsAllowed(difficultyNPS[d]))
                     .ToList();
 
                 if (matching.Count > 0)
@@ -128,7 +136,7 @@ namespace RandomPlaylistMod.Managers
                     return chosen;
                 }
 
-                Plugin.Log.Info($"PlaySessionManager: No difficulty in NPS range [{MinNPS:F1}-{MaxNPS:F1}], using hardest available");
+                Plugin.Log.Info($"PlaySessionManager: No difficulty in NPS filter, using hardest available");
             }
 
             // fallback：选最高可用难度
@@ -169,6 +177,11 @@ namespace RandomPlaylistMod.Managers
 
             MinNPS = settings.MinNps;
             MaxNPS = settings.MaxNps;
+            // 兼容旧版 UI 只传 Min/Max 的场景：自动推导 NpsAny/NpsBands
+            NpsAny = settings.MinNps <= 0f && settings.MaxNps >= 99f;
+            NpsBands = NpsAny
+                ? new List<(float, float)>()
+                : new List<(float, float)> { (settings.MinNps, settings.MaxNps) };
             NoFailEnabled = settings.NoFailEnabled;
 
             var allSongs = _playlistManager.GetSongsFromSelectedPlaylists();
@@ -179,7 +192,7 @@ namespace RandomPlaylistMod.Managers
                 return;
             }
 
-            _currentSongQueue = _songSelector.SelectSongsForDuration(allSongs, settings.DurationMinutes, MinNPS, MaxNPS);
+            _currentSongQueue = _songSelector.SelectSongsForDuration(allSongs, settings.DurationMinutes, NpsBands, NpsAny);
             _currentSongIndex = 0;
 
             if (_currentSongQueue.Count == 0)
@@ -258,12 +271,17 @@ namespace RandomPlaylistMod.Managers
                         {
                             MinNPS = MinNPS,
                             MaxNPS = MaxNPS,
+                            NpsAny = NpsAny,
+                            NpsBandLabels = NpsBands
+                                .Select(b => LevelBand.All.FirstOrDefault(x => !x.IsAny && x.Min == b.min && x.Max == b.max)?.Label)
+                                .Where(l => l != null)
+                                .ToList(),
                             NoFailEnabled = NoFailEnabled,
                             HudEnabled = HudEnabled,
                             PlaylistCount = _playlistIdsSnapshot?.Count ?? 0,
                             AvailableSongCount = _availableSongCountSnapshot
                         },
-                        ModVersion = "2.0.0"
+                        ModVersion = "2.2.0"
                     };
 
                     // 异步保存会话记录

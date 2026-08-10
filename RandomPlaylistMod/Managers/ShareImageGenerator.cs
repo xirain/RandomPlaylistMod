@@ -277,10 +277,19 @@ namespace RandomPlaylistMod.Managers
 
         private string BuildDurationExtras(SessionRecord record)
         {
-            if (record.Settings != null && (record.Settings.MinNPS > 0 || record.Settings.MaxNPS < 99))
+            if (record.Settings != null)
             {
-                return string.Format(@"<div class=""item""><span class=""key"">NPS Range</span><span class=""val"">{0:F1} - {1:F1}</span></div>",
-                    record.Settings.MinNPS, record.Settings.MaxNPS);
+                string npsText;
+                if (record.Settings.NpsAny)
+                    npsText = "Any";
+                else if (record.Settings.NpsBandLabels != null && record.Settings.NpsBandLabels.Count > 0)
+                    npsText = string.Join(" / ", record.Settings.NpsBandLabels);
+                else if (record.Settings.MinNPS > 0 || record.Settings.MaxNPS < 99)
+                    npsText = $"{record.Settings.MinNPS:F1} - {record.Settings.MaxNPS:F1}";
+                else
+                    npsText = "Any";
+
+                return string.Format(@"<div class=""item""><span class=""key"">NPS</span><span class=""val"">{0}</span></div>", npsText);
             }
             return "";
         }

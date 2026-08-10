@@ -19,10 +19,9 @@
                   bg="round-rect-panel" bg-color="#00000077" pad="1" pad-left="2" pad-right="2">
             <horizontal spacing="1">
                 <text text="NPS" font-size="4"/>
-                <button text="Any" on-click="nps-any" pref-width="25"/>
-                <button text="-6" on-click="nps-relax" pref-width="20"/>
-                <button text="6-9" on-click="nps-mid" pref-width="25"/>
-                <button text="9+" on-click="nps-fast" pref-width="20"/>
+                <button text="Any" on-click="nps-any" pref-width="30"/>
+                <button text="3-8" on-click="nps-38" pref-width="30"/>
+                <button text="8+" on-click="nps-8plus" pref-width="30"/>
             </horizontal>
         </vertical>
 
