@@ -74,6 +74,16 @@ namespace RandomPlaylistMod.Managers
         public bool NoFailEnabled { get; set; } = false;
         public bool HudEnabled { get; set; } = true;
 
+        /// <summary>
+        /// 让 RandomPlaylistMod 优先选用某个 BeatmapCharacteristic 起播，从而借已安装的 AutoBS 模组做增强。
+        /// - "90Degree"：选 90° 谱播放（不转身、左右摆头范围，适合运动场地），AutoBS 在其上做墙/灯增强。
+        ///   注意 AutoBS 当前版本只对"已有的 90° 谱"生效，不会把 Standard 谱派生成 90°；歌曲无 90° 特征时回退。
+        /// - "Generated360Degree"：让 AutoBS 把该谱自动重做成 360° 旋转图（需 AutoBS 360fy 开启）。
+        /// - null/空：不指定，直接用歌曲第一个特征（通常 Standard）。
+        /// 找不到目标特征（AutoBS 未装 / 歌曲无该特征）时回退到 Standard。
+        /// </summary>
+        public string AutoBSCharacteristic { get; set; } = "90Degree";
+
         /// <summary>判定 NPS 是否通过当前筛选（Any 或未知时通过；否则需落在任一频段内）</summary>
         private bool IsNpsAllowed(float nps)
             => LevelBand.InBands(nps, NpsBands, NpsAny);
@@ -413,8 +423,16 @@ namespace RandomPlaylistMod.Managers
                     return;
                 }
 
-                // 使用第一个特征（通常是 Standard）
-                var characteristic = characteristics[0];
+                // 选择特征：优先使用指定的 AutoBS 特征（如 "90Degree"），让已安装的 AutoBS 模组做增强。
+                // 若指定了特征但歌曲当前特征列表里还没有（AutoBS 在歌曲数据加载阶段才会生成 90° 特征），
+                // 不再跳过该歌，而是回退 Standard 播放——AutoBS 的 SetContent patch 通常已为该歌生成了
+                // 90° 特征（或在本次加载后下次即生效），这样既能让歌正常播放，也能让 AutoBS 有机会接管生成。
+                // 未指定特征时同样回退 Standard。
+                var characteristic = SelectCharacteristic(characteristics, out bool characteristicMatched);
+                if (!characteristicMatched)
+                {
+                    Plugin.Log.Info($"PlaySessionManager: 歌曲 '{song.SongName}' 暂无特征 '{AutoBSCharacteristic}'，回退 Standard 播放（AutoBS 可在此播放时/加载后生成 90°）");
+                }
 
                 // 获取该特征下可用的难度
                 var difficulties = beatmapLevel.GetDifficulties(characteristic)?.ToList();
@@ -537,6 +555,32 @@ namespace RandomPlaylistMod.Managers
                 AdvanceToNextSong();
                 PlayNextSong();
             }
+        }
+
+        /// <summary>
+        /// 从歌曲特征列表中选择要播放的特征。
+        /// 若设置了 AutoBSCharacteristic（如 "90Degree"）且该特征确实存在于歌曲特征列表中，
+        /// 则选用它（matched=true），从而借已安装的 AutoBS 模组做增强；否则 matched=false，回退第一个特征。
+        /// </summary>
+        private BeatmapCharacteristicSO SelectCharacteristic(List<BeatmapCharacteristicSO> characteristics, out bool matched)
+        {
+            var target = AutoBSCharacteristic?.Trim();
+            if (!string.IsNullOrEmpty(target))
+            {
+                var found = characteristics.FirstOrDefault(c =>
+                    c != null && string.Equals(c.serializedName, target, StringComparison.OrdinalIgnoreCase));
+                if (found != null)
+                {
+                    matched = true;
+                    Plugin.Log.Info($"PlaySessionManager: 选用特征 '{target}' 播放（借 AutoBS 增强，不转身）");
+                    return found;
+                }
+                matched = false;
+                Plugin.Log.Warn($"PlaySessionManager: 目标特征 '{target}' 不在歌曲特征列表中（AutoBS 可能未安装 / 歌曲无该特征），回退默认特征");
+                return characteristics[0];
+            }
+            matched = true;
+            return characteristics[0];
         }
 
         private GameplayModifiers CreateGameplayModifiers()

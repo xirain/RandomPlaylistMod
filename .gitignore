@@ -31,3 +31,13 @@ CustomSabersLite/
 PPCounter/
 PlaylistManager/
 SaberRandomizer/
+AutoBS/
+bs-manager/
+
+## Local tooling
+nuget.exe
+
+## Build / deploy diagnostics
+build_rpm.txt
+build_*.txt
+

@@ -4,8 +4,8 @@
   "id": "RandomPlaylistMod",
   "name": "RandomPlaylistMod",
   "author": "xirain",
-  "version": "2.2.0",
-  "description": "Beat Saber random playlist mod — set duration, filter by NPS (Notes Per Second), and play continuously from multiple playlists.",
+  "version": "2.3.0",
+  "description": "Beat Saber random playlist mod — set duration, filter by NPS (Notes Per Second), and play continuously from multiple playlists. Integrates with AutoBS to auto-play 90° swing maps (45°/60°/90° range) for limited-motion play areas.",
   "gameVersion": "1.44.0",
   "dependsOn": {
     "BSIPA": "^4.1.0",

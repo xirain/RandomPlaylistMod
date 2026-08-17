@@ -25,6 +25,19 @@
             </horizontal>
         </vertical>
 
+        <!-- Row 2.5: AutoBS feature mode (借已装 AutoBS 模组增强/生成) -->
+        <vertical horizontal-fit="Unconstrained" child-control-height="false" child-expand-height="false"
+                  bg="round-rect-panel" bg-color="#00000077" pad="1" pad-left="2" pad-right="2">
+            <horizontal spacing="1">
+                <text text="AutoBS" font-size="4"/>
+                <button text="Standard" on-click="abs-standard" pref-width="38"/>
+                <button text="45°" on-click="abs-45" pref-width="28"/>
+                <button text="60°" on-click="abs-60" pref-width="28"/>
+                <button text="90°" on-click="abs-90" pref-width="28"/>
+                <button text="360°" on-click="abs-360" pref-width="34"/>
+            </horizontal>
+        </vertical>
+
         <!-- Row 3: gameplay settings -->
         <vertical horizontal-fit="Unconstrained" child-control-height="false" child-expand-height="false"
                   bg="round-rect-panel" bg-color="#00000077" pad="1" pad-left="2" pad-right="2">

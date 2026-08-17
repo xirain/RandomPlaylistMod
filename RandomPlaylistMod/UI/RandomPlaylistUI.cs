@@ -29,6 +29,10 @@ namespace RandomPlaylistMod.UI
         private string _sessionStatus = "";
         private bool _noFailEnabled = false;
         private bool _hudEnabled = true;
+        // AutoBS 特征模式：Standard(空) / 90°(90Degree) / 360°(Generated360Degree)，控制起播时选用的 BeatmapCharacteristic
+        private string _autoBSMode = "90°";
+        // 90° 摆幅（度）：45 / 60 / 90。选 90° 系列按钮时写入 AutoBS.Config.Generated90SwingRange
+        private int _autoBSSwingRange = 60;
 
         private Coroutine _sessionUpdateCoroutine;
 
@@ -144,6 +148,63 @@ namespace RandomPlaylistMod.UI
 
         [UIValue("hud-button-text")]
         public string HudButtonText => $"HUD: {(HudEnabled ? "ON" : "OFF")}";
+
+        [UIValue("auto-bs-mode")]
+        public string AutoBSMode
+        {
+            get => _autoBSMode;
+            set
+            {
+                _autoBSMode = value;
+                NotifyPropertyChanged();
+            }
+        }
+
+        // 将 UI 模式映射到 PlaySessionManager.AutoBSCharacteristic 的 serializedName
+        private static string ModeToCharacteristic(string mode) => mode switch
+        {
+            "45°" or "60°" or "90°" => "90Degree",
+            "360°" => "Generated360Degree",
+            _ => "" // Standard：不指定，回退第一特征
+        };
+
+        // 从 UI 模式解析 90° 摆幅（度）。非 90° 系列返回 null。
+        private static int? SwingRangeFromMode(string mode) => mode switch
+        {
+            "45°" => 45,
+            "60°" => 60,
+            "90°" => 90,
+            _ => null
+        };
+
+        // 通过反射写入已安装的 AutoBS 模组的 Generated90SwingRange 配置（避免硬引用 AutoBS 程序集）。
+        // 若 AutoBS 未安装或反射失败，仅记日志，不影响 RandomPlaylistMod 自身播放。
+        private void ApplyAutoBSSwingRange(int rangeDegrees)
+        {
+            try
+            {
+                var autoBsAssembly = AppDomain.CurrentDomain.GetAssemblies()
+                    .FirstOrDefault(a => a.GetName().Name == "AutoBS");
+                if (autoBsAssembly == null)
+                {
+                    Plugin.Log.Warn($"AutoBS 未安装，无法设置 90° 摆幅为 {rangeDegrees}°（将使用 AutoBS 默认）");
+                    return;
+                }
+                var configType = autoBsAssembly.GetType("AutoBS.Config");
+                var instanceProp = configType?.GetProperty("Instance", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                var instance = instanceProp?.GetValue(null);
+                var rangeProp = configType?.GetProperty("Generated90SwingRange");
+                if (instance != null && rangeProp != null)
+                {
+                    rangeProp.SetValue(instance, rangeDegrees);
+                    Plugin.Log.Info($"已通过反射将 AutoBS.Generated90SwingRange 设为 {rangeDegrees}°");
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.Warn($"设置 AutoBS 90° 摆幅失败（{ex.Message}），将使用 AutoBS 默认");
+            }
+        }
 
         [Inject]
         public void Construct(PlaylistManager playlistManager, PlaySessionManager playSessionManager, SongSelector songSelector)
@@ -312,6 +373,52 @@ namespace RandomPlaylistMod.UI
             Plugin.Log.Info("[DEBUG] NPS preset: 8+");
         }
 
+        [UIAction("abs-standard")]
+        public void SetAutoBSStandard()
+        {
+            AutoBSMode = "Standard";
+            _playSessionManager.AutoBSCharacteristic = ModeToCharacteristic(AutoBSMode);
+            Plugin.Log.Info($"AutoBS mode -> Standard (characteristic='{_playSessionManager.AutoBSCharacteristic}')");
+        }
+
+        [UIAction("abs-45")]
+        public void SetAutoBS45()
+        {
+            AutoBSMode = "45°";
+            _autoBSSwingRange = 45;
+            _playSessionManager.AutoBSCharacteristic = ModeToCharacteristic(AutoBSMode);
+            ApplyAutoBSSwingRange(_autoBSSwingRange);
+            Plugin.Log.Info($"AutoBS mode -> 45° (characteristic='{_playSessionManager.AutoBSCharacteristic}', swing={_autoBSSwingRange}°)");
+        }
+
+        [UIAction("abs-60")]
+        public void SetAutoBS60()
+        {
+            AutoBSMode = "60°";
+            _autoBSSwingRange = 60;
+            _playSessionManager.AutoBSCharacteristic = ModeToCharacteristic(AutoBSMode);
+            ApplyAutoBSSwingRange(_autoBSSwingRange);
+            Plugin.Log.Info($"AutoBS mode -> 60° (characteristic='{_playSessionManager.AutoBSCharacteristic}', swing={_autoBSSwingRange}°)");
+        }
+
+        [UIAction("abs-90")]
+        public void SetAutoBS90()
+        {
+            AutoBSMode = "90°";
+            _autoBSSwingRange = 90;
+            _playSessionManager.AutoBSCharacteristic = ModeToCharacteristic(AutoBSMode);
+            ApplyAutoBSSwingRange(_autoBSSwingRange);
+            Plugin.Log.Info($"AutoBS mode -> 90° (characteristic='{_playSessionManager.AutoBSCharacteristic}', swing={_autoBSSwingRange}°)");
+        }
+
+        [UIAction("abs-360")]
+        public void SetAutoBS360()
+        {
+            AutoBSMode = "360°";
+            _playSessionManager.AutoBSCharacteristic = ModeToCharacteristic(AutoBSMode);
+            Plugin.Log.Info($"AutoBS mode -> 360° (characteristic='{_playSessionManager.AutoBSCharacteristic}')");
+        }
+
         [UIAction("select-all")]
         public void SelectAllPlaylists()
         {
@@ -346,6 +453,8 @@ namespace RandomPlaylistMod.UI
             _playSessionManager.MaxNPS = MaxNPS;
             _playSessionManager.NoFailEnabled = NoFailEnabled;
             _playSessionManager.HudEnabled = HudEnabled;
+            // 传递 AutoBS 特征模式（Standard/90°/360°）到 PlaySessionManager
+            _playSessionManager.AutoBSCharacteristic = ModeToCharacteristic(AutoBSMode);
 
             SessionStatus = $"Starting session ({_selectedDuration} min) | No Fail: {(NoFailEnabled ? "ON" : "OFF")}";
             _playSessionManager.StartSession(new SessionSettings

@@ -898,6 +898,76 @@ UserData/RandomPlaylistMod/
 | `docs/bilibili_script_v2.1.0.md` | B 站 2-3 分钟分镜脚本，含链接汇总（含 PlaylistManager 1.44 fork） |
 | `docs/bilibili_script_v2.1.0_口播稿.md` | 同内容纯口播稿（无分镜标注） |
 
+---
+
+## [BUILD-FIX] AutoBS fork 本地构建 + 部署（2026-08-14）
+
+**背景**：用户选 B（本地部署测试）验证 AutoBS fork 的 90° 生成功能。AutoBS 非 git 仓库、用老式 packages.config 风格，本机缺 `packages/` 导致编译失败，且 csproj 有若干 1.42.0 旧路径与硬编码 D 盘 OutputPath。
+
+**环境修复（已完成）**
+1. **NuGet 包还原**：`nuget.exe` 直连 `dist.nuget.org` 不通，改用 `api.nuget.org/v3-flatcontainer` 下载 47 个包到 `AutoBS/packages/`（OK=47）。
+2. **csproj HintPath 1.42→1.44**：`UnityEngine.XRModule` 与 `UnityEngine.PhysicsModule` 从 `D:\BSManager\BSInstances\1.42.0` 改到 `F:\paly\BSManager\BSInstances\1.44.0`。
+3. **Queue\<T> CS0433 冲突**：`<Reference Include="System" />` 无 HintPath，MSBuild 从 .NET 4.8 引用程序集解析出含 `Queue<T>` 的 `System.dll`，与游戏 `mscorlib.dll` 的 `Queue<T>` 冲突。修复：给 System 引用加 `<HintPath>$(BeatSaberDir)\Beat Saber_Data\Managed\System.dll</HintPath>` + `<Private>false</Private>`，与 mscorlib 同源。
+4. **硬编码 OutputPath**：`AutoBS.csproj` 的 Debug/Release `<OutputPath>D:\BSManager\...\1.44.0\Plugins\</OutputPath>` 指向不存在的旧 D 盘。修复：改为 `<OutputPath>$(BeatSaberDir)\Plugins\</OutputPath>`，使产物随 `/p:BeatSaberDir` 落到实际 F 盘实例。
+5. **BeatSaberDir 路径**：`AutoBS/AutoBS/Directory.Build.props` 的 `<BeatSaberDir>` 从 `D:\BSManager\BSInstances\1.44.0` 改为 `F:\paly\BSManager\BSInstances\1.44.0`。
+6. 临时注释的 `System.Collections.Immutable` 引用已恢复；`EnsureNuGetPackageBuildImports` Target 注释已恢复。
+
+**构建命令**（AutoBS）
+```
+MSBuild AutoBS/AutoBS.csproj /p:BeatSaberDir="F:\paly\BSManager\BSInstances\1.44.0" /p:SolutionDir="D:\code\aidemo\bsmodrandom\AutoBS\" /t:Rebuild
+```
+
+**部署结果**（已落地 F 盘实例）
+- `F:\paly\BSManager\BSInstances\1.44.0\Plugins\AutoBS.dll` — 607744 字节，内嵌 `AutoBS.manifest.json`（BSMT 自动嵌入），17:15 构建部署。
+- `F:\paly\BSManager\BSInstances\1.44.0\Plugins\RandomPlaylistMod.dll` — 已复制最新 2.2.0 构建（含 90° 模式 UI 开关：`AutoBSCharacteristic` 默认 `90Degree`）。
+- 运行时依赖（BSML / BS_Utils / CustomJSONData / SiraUtil / SongCore）在实例 Plugins 均存在。
+
+**剩余警告（无害，非本次引入）**：CS8632（nullable 注解仅内部）、CS0618（FindObjectOfType 等弃用）、CS0162（unreachable）、MSB3277（System.Net.Http 版本统一到 4.0.0.0）。0 个 error CS。
+
+**待用户实机验证（关键）**
+- 游戏内 AutoBS 设置页开 `Enable Generated 90 Maps` + RandomPlaylistMod 选 90° 模式播任意 Standard 歌 → 应出左右摆头不转身 90° 谱。
+- 日志应有 `[RotationGenerator] Generating 90° (swing) rotation events`；`LimitRotations=4`（±60° 摆动）可能需按场地微调。
+- 注意：AutoBS `GameplaySetupView` 的 toggle 名是 `Enable90fyer`；RandomPlaylistMod 侧只是设置 `AutoBSCharacteristic="90Degree"` 让选歌走 90° 特征，真实生成由 AutoBS 负责。
+
+**修改文件清单（构建环境）**
+| 文件 | 变更类型 | 说明 |
+| --- | --- | --- |
+| `AutoBS/AutoBS/AutoBS.csproj` | 修改 | System 引用加 HintPath + Private=false；OutputPath 改用 $(BeatSaberDir) |
+| `AutoBS/AutoBS/Directory.Build.props` | 修改 | BeatSaberDir → F 盘实例 |
+| `AutoBS/packages/` | 新增 | NuGet 包还原（47 个） |
+
+---
+
+## [FEAT] AutoBS 90° 摆幅 45°/60°/90° 可选项（2026-08-15）
+
+**用户需求**：AutoBS 90° 生成功能已实机验证通过；现要求增加 45° 和 60° 两档摆幅选项（原默认仅有 90° 单档 ≈ ±60° swing）。并确认 arc 在 enable AutoBS 时的默认行为。
+
+**关于 arc 默认行为（已确认）**：enable AutoBS（含 Generated90Degree 生成）时，**arc 默认是添加的**。`Utils.IsEnabledArcs()` 对 `Generated90Degree` 模式检查 `Config.Instance.EnableArcsGen360`（默认 `true`）；仅当手动关闭该开关才不添加。同逻辑默认启用的还有 chains / walls / lighting / autoNjsFixer。
+
+**实现方案**
+- 摆幅由 AutoBS `RotationGenerator` 的 `LimitRotations`（每格 15°）驱动。新增 Config `Generated90SwingRange`（45/60/90，默认 60），90° 生成分支按该值设摆幅：
+  - 45° → LimitRotations=3（±45°），BottleneckRotations=2（±30°）
+  - 60° → LimitRotations=4（±60°），BottleneckRotations=2（±30°）
+  - 90° → LimitRotations=6（±90°），BottleneckRotations=3（±45°）
+- AutoBS `GameplaySetupView` 新增 `90° Swing Range` 下拉（选项 45/60/90），供用户在 AutoBS 侧直接调。
+- RandomPlaylistMod：原 AutoBS 行的单「90°」按钮拆为「45°」「60°」「90°」三档；点击时设 `PlaySessionManager.AutoBSCharacteristic="90Degree"` 并**通过反射**写入已装 AutoBS 的 `Config.Generated90SwingRange`（避免硬引用 AutoBS 程序集；若 AutoBS 未装仅记日志、不影响 RPM 自身播放）。Standard / 360° 按钮保持。
+
+**修改文件清单**
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `AutoBS/AutoBS/Config.cs` | 修改 | 新增 `Generated90SwingRange` (int, 默认 60) |
+| `AutoBS/AutoBS/Modules/RotationGenerator.cs` | 修改 | 90° 分支按 `Generated90SwingRange` 动态设 LimitRotations/BottleneckRotations |
+| `AutoBS/AutoBS/UI/GameplaySetupView.cs` | 修改 | 新增 `Generated90SwingRange` 属性 + 下拉选项列表 |
+| `AutoBS/AutoBS/UI/Views/GameplaySetupView.bsml` | 修改 | 新增 `90° Swing Range` 下拉 |
+| `RandomPlaylistMod/UI/RandomPlaylistUI.cs` | 修改 | 模式映射支持 45/60/90；新增 `SwingRangeFromMode` + `ApplyAutoBSSwingRange`（反射）；abs-45/abs-60/abs-90 三 action |
+| `RandomPlaylistMod/UI/Views/RandomPlaylistView.bsml` | 修改 | AutoBS 行 90° 单按钮拆为 45°/60°/90° |
+
+**部署**：AutoBS.dll（12:07）、RandomPlaylistMod.dll（12:08）已复制到 F 盘实例 Plugins；0 error CS，0 lint。
+
+**待用户实机验证**
+- RPM 选 45°/60°/90° → 日志应有 `90° swing range set to X° (LimitRotations=…)`；对应摆头幅度变化。
+- AutoBS 设置页 `90° Swing Range` 下拉亦可直接调整（与 RPM 按钮等效，取最后设置值）。
+
 
 
 
