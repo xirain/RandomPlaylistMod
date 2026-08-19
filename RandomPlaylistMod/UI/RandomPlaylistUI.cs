@@ -160,10 +160,13 @@ namespace RandomPlaylistMod.UI
             }
         }
 
-        // 将 UI 模式映射到 PlaySessionManager.AutoBSCharacteristic 的 serializedName
+        // 将 UI 模式映射到 PlaySessionManager.AutoBSCharacteristic 的 serializedName。
+        // 注意：AutoBS 注册并生成的是 "Generated90Degree" 特征（见 AutoBS GameModeHelper.GENERATED_90DEGREE_MODE），
+        // 而非原生的 "90Degree"。之前错误地映射到 "90Degree"，导致普通歌找不到该特征而回退 Standard，
+        // AutoBS 的 IsGen90 永远为 false、90° 生成根本不触发。必须映射到 "Generated90Degree" 才能激活生成。
         private static string ModeToCharacteristic(string mode) => mode switch
         {
-            "45°" or "60°" or "90°" => "90Degree",
+            "45°" or "60°" or "90°" => "Generated90Degree",
             "360°" => "Generated360Degree",
             _ => "" // Standard：不指定，回退第一特征
         };

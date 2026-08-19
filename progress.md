@@ -968,6 +968,114 @@ MSBuild AutoBS/AutoBS.csproj /p:BeatSaberDir="F:\paly\BSManager\BSInstances\1.44
 - RPM 选 45°/60°/90° → 日志应有 `90° swing range set to X° (LimitRotations=…)`；对应摆头幅度变化。
 - AutoBS 设置页 `90° Swing Range` 下拉亦可直接调整（与 RPM 按钮等效，取最后设置值）。
 
+---
+
+## [FIX+RELEASE] 60° 验证通过 + RPM skip 修复 + 双仓提交（2026-08-17）
+
+**日志检查结论**：60° 摆幅逻辑正确（LimitRotations=4 → ±60°）。但发现 RPM 在「选歌时」检查特征列表，
+而 AutoBS 在「播放/加载时」才生成 90Degree 特征，导致大量歌因菜单还没 90Degree 被整首跳过
+（日志 line 11911-11920 反复 `目标特征 90Degree 不在…跳过继续下一首`）。用户「60° ok」是部分歌实际生成了。
+
+**用户决策**：
+1. 修 skip 行为：无 90Degree 时**回退 Standard 播放**（不再跳过），AutoBS 在歌曲加载阶段生成 90° 后下一轮即命中。
+2. AutoBS 改动提交到本地分支 `bs-1.42`，由用户在自己账号新建 repo 后 clone 推送。
+3. RPM 发布为 **2.3.0**（非 2.0.0/2.2.0）。
+
+**PlaySessionManager.cs 改动**：`SelectCharacteristic` 仍回退 `characteristics[0]`（matched=false），但 StartLevel
+不再 `!characteristicMatched` 时 return 跳过，改为 Info 日志后继续用 Standard 播放。
+
+**RPM 提交与发布**
+- commit `e972021` (branch `local/level-filter-2.2.0`)：PlaySessionManager skip 修复 + AutoBS 45/60/90 UI +
+  manifest → 2.3.0 + release notes v2.3.0 + .gitignore 忽略 AutoBS/ 与诊断文件。
+- GitHub Release 已创建：https://github.com/xirain/RandomPlaylistMod/releases/tag/v2.3.0 （附 RandomPlaylistMod.dll）。
+- deploy：RPM dll（14:20）已复制到 F 盘实例 Plugins。
+
+**AutoBS 提交**
+- commit `adc8f63` (branch `bs-1.42`)：14 个源文件（Generated90Degree 生成 + 45/60/90 摆幅 + csproj/Directory.Build.props 构建修复）。
+- 诊断文件 build_*.txt 与 `AutoBS中文介绍.md` 保持 untracked 未提交。
+- 用户后续：在自己账号建空 repo → `git remote add mine <fork URL>` → `git push mine bs-1.42`。
+
+---
+
+## [FIX] 选 45°/60°/90° 无变化（90° 生成不触发） 2026-08-18
+
+### 现象
+用户实机验证：在 RPM 里选 45°（或 60°/90°），歌曲照常播放但没有任何摆头/90° 变化。
+
+### 根因
+- RPM `RandomPlaylistUI.ModeToCharacteristic` 把 "45°/60°/90°" 映射成 `"90Degree"`（原生特征名）。
+- 但 AutoBS 注册并生成的是 **`"Generated90Degree"`** 特征（`AutoBS.GameModeHelper.GENERATED_90DEGREE_MODE = "Generated90Degree"`，`Plugin.cs` 注册 `GetCustomGameMode("GEN90", ..., "Generated90Degree")`）。
+- 断链：
+  1. `SelectCharacteristic` 用 `"90Degree"` 去 `beatmapLevel.GetCharacteristics()` 找 → 普通歌无此原生特征 → `characteristicMatched=false` → 回退 `characteristics[0]`（Standard）起播。
+  2. 起播的 `BeatmapKey` 用 `characteristic=Standard` → AutoBS `TransitionPatcher.Prefix` 读到 `SelectedSerializedName="Standard"` → `IsGen90=false` → **90° 生成完全不触发**，等价于普通 Standard 播放。
+
+### 修复
+- `RandomPlaylistUI.ModeToCharacteristic`：将 "45°/60°/90°" 的映射目标从 `"90Degree"` 改为 **`"Generated90Degree"`**。
+  - 这样 `SelectCharacteristic` 能匹配到 AutoBS 注入到歌曲特征列表的 `Generated90Degree`，起播 `BeatmapKey` 携带该特征，AutoBS `IsGen90=true` 触发 90° 生成。
+  - 配合已有的 `ApplyAutoBSSwingRange`（反射写 `AutoBS.Config.Generated90SwingRange`），45/60/90 摆幅差异才真正生效。
+- 修改文件：`RandomPlaylistMod/UI/RandomPlaylistUI.cs`
+- 构建 + 部署：Release 构建成功，`RandomPlaylistMod.dll` 已复制到 F 盘实例 `Plugins\`。
+
+### 验证待办
+- 实机选 45°/60°/90°，确认摆头幅度差异；选 360° 仍走 `Generated360Degree`（未改动）。
+- 提交与发布：待用户确认效果后 commit（建议沿用 2.3.0 补丁或 bump 2.3.1）。
+
+---
+
+## [FIX] 选 45°/90° 仍不转（更深层：未注入生成特征） 2026-08-18（第二次）
+
+### 现象
+修正映射为 Generated90Degree 后，实机选 45°/90° 仍不生效、不会转。
+
+### 二次根因（日志确认）
+- RPM 日志：`目标特征 'Generated90Degree' 不在歌曲特征列表中 ... 回退默认特征` → `暂无特征 'Generated90Degree'，回退 Standard 播放`
+- AutoBS 日志：`SetContent` 仅在"菜单手动点开歌曲"时跑；RPM 随机放歌跳过了该 UI 流程 →
+  歌曲 `GetCharacteristics()` 里**从未被 AutoBS 注入 Generated90Degree**；同时 `SetContent.GeneratedToStandardKey` 映射表为空。
+- 结果：RPM 即便传 Generated90Degree 也构造不出该特征对象；AutoBS `TransitionPatcher` 读 `SelectedSerializedName="Standard"`、`IsGen90=False`，不生成。
+
+### 修复
+- 在 `PlaySessionManager.StartLevel` 起播前，当 `AutoBSCharacteristic` 为 `Generated90Degree`/`Generated360Degree` 时，
+  反射调用 **AutoBS 自身**的 `AutoBS.Patches.SetContent.CreateGen360DifficultySet(beatmapLevel)`，
+  复用其逻辑把生成特征注入该 level 并填充 `GeneratedToStandardKey` 映射；随后重新 `GetCharacteristics()`。
+  - 这样 `SelectCharacteristic` 能匹配到 Generated90Degree 特征对象，`BeatmapKey` 携带它，
+    AutoBS `IsGen90=true` + `BasedOnKey` 命中 → 真正生成 90° 摆动谱面。
+  - 反射调用失败（AutoBS 未装/签名变化）仅记 Warn，RPM 回退 Standard，不崩。
+- 新增方法 `EnsureAutoBSGeneratedCharacteristic(BeatmapLevel)`（反射，无硬引用）。
+- 修改文件：`RandomPlaylistMod/Managers/PlaySessionManager.cs`
+- 构建 + 部署：Release 构建成功（仅 1 过时 API 警告，无关），`RandomPlaylistMod.dll` 已复制到 F 盘实例 Plugins。
+
+### 验证待办
+- 实机选 45°/90° 确认真正转起来；摆幅差异由 `Generated90SwingRange`（反射写入 AutoBS.Config）决定。
+- 确认无误后 commit + 视情况 bump 2.3.1 补丁 Release。
+
+---
+
+## [FIX] 90° 场景不旋转（只改音符角度） 2026-08-19
+
+### 现象
+实机选 45/60/90 场景变了，但只是"音符方块变化角度"，没有整个场景绕玩家摆动。
+
+### 根因
+- 日志确认 RPM 注入特征成功（`Gen90=True`），但 `RotationGenerator` 的 `Log.Info` 从不输出 → 90° 分支没被调用。
+- `AutoBS/Modules/GenerationPipeline.cs` 的 `RunRotationGenerator`：
+  `if (SelectedSerializedName != GENERATED_360DEGREE_MODE) return;` —— **只放行 360°，90° 模式被 early return**，
+  导致 `RotationGenerator.Generate()`（含 90° 摆幅逻辑、按 Generated90SwingRange 设 LimitRotations/BottleneckRotations）从不执行。
+  玩家看到的"音符方块变化角度"是 AutoBS 90° 模式的其他小效果，而非真正的场景旋转摆动。
+
+### 修复
+- `GenerationPipeline.RunRotationGenerator`：放行条件增加 `!= GENERATED_90DEGREE_MODE`，使 90° 也能进入 `RotationGenerator.Generate()`，
+  从而按 `Generated90SwingRange`（45/60/90 对应 LimitRotations 3/4/6）生成场景旋转摆动。
+- 另：构建报错 `System.Windows.Forms` 找不到。排查发现 `RotationGenerator.cs`/`Arcitect.cs`/`WallGenerator.cs`/
+  `CreateTransformedBeatmapData.cs`/`EnvironmentMarkersAndGreenScreen.cs` 中的 `using System.Windows.Forms`（含 static 变体）
+  均为 upstream 残留的无用引用（未实际使用任何 Forms 类型）。删除这 5 处 using 后构建恢复 0 错误。
+- 修改文件：`AutoBS/Modules/GenerationPipeline.cs`、`AutoBS/Modules/RotationGenerator.cs`、`AutoBS/Modules/Arcitect.cs`、
+  `AutoBS/Modules/WallGenerator.cs`、`AutoBS/Patches/CreateTransformedBeatmapData.cs`、`AutoBS/Modules/EnvironmentMarkersAndGreenScreen.cs`
+- 构建 + 部署：Release 0 错误；`AutoBS.dll` 已复制到 F 盘实例 Plugins（2026/8/19 09:38）。
+
+### 验证待办
+- 实机选 45/60/90 应能看到场景绕玩家摆动，且三档摆幅明显不同（45 最小、90 最大）。
+- 确认无误后 commit AutoBS（bump 版本？）并视情况重新打 Release / 发布 RPM 2.3.1。
+
 
 
 

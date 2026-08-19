@@ -423,6 +423,19 @@ namespace RandomPlaylistMod.Managers
                     return;
                 }
 
+                // 若指定了 AutoBS 生成类特征（Generated90Degree/Generated360Degree），RPM 随机放歌时
+                // 跳过了"菜单选歌"流程，AutoBS 的 SetContent patch 不会为该歌注入生成特征，导致
+                // GetCharacteristics() 里没有 Generated90Degree，AutoBS 也读不到 BasedOnKey 映射而无法生成。
+                // 这里在起播前主动反射调用 AutoBS 的 SetContent.CreateGen360DifficultySet(level)，
+                // 复用 AutoBS 自身逻辑把特征注入该 level 并填充生成映射表，从而真正触发 90°/360° 生成。
+                if (!string.IsNullOrEmpty(AutoBSCharacteristic) &&
+                    (AutoBSCharacteristic.Equals("Generated90Degree", StringComparison.OrdinalIgnoreCase) ||
+                     AutoBSCharacteristic.Equals("Generated360Degree", StringComparison.OrdinalIgnoreCase)))
+                {
+                    EnsureAutoBSGeneratedCharacteristic(beatmapLevel);
+                    characteristics = beatmapLevel.GetCharacteristics()?.ToList() ?? characteristics;
+                }
+
                 // 选择特征：优先使用指定的 AutoBS 特征（如 "90Degree"），让已安装的 AutoBS 模组做增强。
                 // 若指定了特征但歌曲当前特征列表里还没有（AutoBS 在歌曲数据加载阶段才会生成 90° 特征），
                 // 不再跳过该歌，而是回退 Standard 播放——AutoBS 的 SetContent patch 通常已为该歌生成了
@@ -554,6 +567,48 @@ namespace RandomPlaylistMod.Managers
                 SongFailed?.Invoke(song, ex.Message);
                 AdvanceToNextSong();
                 PlayNextSong();
+            }
+        }
+
+        /// <summary>
+        /// 在起播前主动让 AutoBS 为指定 level 注入生成类特征（Generated90/Generated360）。
+        /// 复用 AutoBS 自身逻辑 SetContent.CreateGen360DifficultySet(level)，避免硬引用 AutoBS 程序集。
+        /// 该方法会把 Generated90Degree/Generated360Degree 难度集加入该 level 的特征列表，并填充
+        /// SetContent.GeneratedToStandardKey 映射，使 AutoBS 的 TransitionPatcher 能据此生成变换谱面。
+        /// 若 AutoBS 未安装或方法签名变化，则静默失败（仅记日志），RPM 回退 Standard 播放。
+        /// </summary>
+        private void EnsureAutoBSGeneratedCharacteristic(BeatmapLevel beatmapLevel)
+        {
+            try
+            {
+                const string asmName = "AutoBS";
+                const string typeName = "AutoBS.Patches.SetContent";
+                const string methodName = "CreateGen360DifficultySet";
+                var asm = System.AppDomain.CurrentDomain.GetAssemblies()
+                    .FirstOrDefault(a => a.GetName().Name == asmName);
+                if (asm == null)
+                {
+                    Plugin.Log.Warn("PlaySessionManager: 未找到 AutoBS 程序集，无法注入生成特征（回退 Standard）");
+                    return;
+                }
+                var type = asm.GetType(typeName);
+                if (type == null)
+                {
+                    Plugin.Log.Warn($"PlaySessionManager: 未找到类型 {typeName}（AutoBS 版本不兼容？）");
+                    return;
+                }
+                var method = type.GetMethod(methodName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                if (method == null)
+                {
+                    Plugin.Log.Warn($"PlaySessionManager: 未找到方法 {typeName}.{methodName}");
+                    return;
+                }
+                method.Invoke(null, new object[] { beatmapLevel });
+                Plugin.Log.Info($"PlaySessionManager: 已请求 AutoBS 为 '{beatmapLevel.levelID}' 注入生成特征");
+            }
+            catch (System.Exception ex)
+            {
+                Plugin.Log.Warn($"PlaySessionManager: 调用 AutoBS 注入特征失败：{ex.Message}（回退 Standard）");
             }
         }
 
