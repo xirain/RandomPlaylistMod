@@ -23,6 +23,7 @@ namespace RandomPlaylistMod.UI
         private HistoryManager _historyManager;
         private ShareImageGenerator _shareImageGenerator;
         private RandomPlaylistFlowCoordinator _flowCoordinator;
+        private MainFlowCoordinator _mainFlowCoordinator;
 
         // 当前展示的 SessionRecord
         private SessionRecord _currentRecord;
@@ -91,12 +92,14 @@ namespace RandomPlaylistMod.UI
             PlaySessionManager playSessionManager,
             HistoryManager historyManager,
             ShareImageGenerator shareImageGenerator,
-            RandomPlaylistFlowCoordinator flowCoordinator)
+            RandomPlaylistFlowCoordinator flowCoordinator,
+            MainFlowCoordinator mainFlowCoordinator)
         {
             _playSessionManager = playSessionManager;
             _historyManager = historyManager;
             _shareImageGenerator = shareImageGenerator;
             _flowCoordinator = flowCoordinator;
+            _mainFlowCoordinator = mainFlowCoordinator;
 
             // 订阅 SessionEndedWithRecord 事件
             _playSessionManager.SessionEndedWithRecord += OnSessionEndedWithRecord;
@@ -131,9 +134,17 @@ namespace RandomPlaylistMod.UI
             _currentRecord = record;
             SetSessionRecord(record);
 
-            // 自动弹出总结面板
+            // 自动弹出总结面板。
+            // 注意：session 结束时 RPM 的 FlowCoordinator 很可能已被游戏 deactivate（不在层级里），
+            // 此时直接在它上面 PresentViewController 会失败/层级错乱（页面看不到且无法回退）。
+            // 因此先确保 RPM FlowCoordinator 已重新呈现到 MainFlowCoordinator 层级，再 show summary。
             try
             {
+                if (!_flowCoordinator.isActivated)
+                {
+                    Plugin.Log.Info("SessionSummaryView: RPM FlowCoordinator not active at session end, re-presenting it...");
+                    _mainFlowCoordinator.PresentFlowCoordinator(_flowCoordinator);
+                }
                 _flowCoordinator.ShowSummaryView(this);
             }
             catch (Exception ex)

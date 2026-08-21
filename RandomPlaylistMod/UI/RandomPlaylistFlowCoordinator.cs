@@ -38,7 +38,7 @@ namespace RandomPlaylistMod.UI
                 showBackButton = true;
             }
 
-            if (addedToHierarchy || _isPresented)
+            if (addedToHierarchy)
             {
                 if (_randomPlaylistUI != null)
                 {

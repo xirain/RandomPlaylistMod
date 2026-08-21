@@ -62,6 +62,11 @@ namespace RandomPlaylistMod.Managers
                     return;
                 }
 
+                // 先把虚拟歌单（官方 OST、自定义歌曲）置顶，确保用户在列表最前面就能看到，
+                // 避免排在几百个真实歌单之后被误以为"看不到"。
+                AddOfficialLevelsPlaylist();
+                AddCustomLevelsPlaylist();
+
                 var allPlaylists = defaultManager.GetAllPlaylists(true);
                 Plugin.Log.Info($"PlaylistManager: Found {allPlaylists.Length} playlists from BeatSaberPlaylistsLib");
 
@@ -119,12 +124,6 @@ namespace RandomPlaylistMod.Managers
                 }
 
                 Plugin.Log.Info($"PlaylistManager: Loaded {_playlists.Count} playlists successfully");
-
-                // 添加自定义歌曲虚拟播放列表
-                AddCustomLevelsPlaylist();
-
-                // 添加官方歌曲（OST）虚拟播放列表
-                AddOfficialLevelsPlaylist();
             }
             catch (System.Exception ex)
             {

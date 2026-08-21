@@ -1076,6 +1076,74 @@ MSBuild AutoBS/AutoBS.csproj /p:BeatSaberDir="F:\paly\BSManager\BSInstances\1.44
 - 实机选 45/60/90 应能看到场景绕玩家摆动，且三档摆幅明显不同（45 最小、90 最大）。
 - 确认无误后 commit AutoBS（bump 版本？）并视情况重新打 Release / 发布 RPM 2.3.1。
 
+---
+
+## [FIX] 90° 慢慢变成 360°（Wireless360 干扰） 2026-08-20
+
+### 现象
+实机 90° 摆动开始摆幅正确，但播放中逐渐累积成 360° 整圈旋转。
+
+### 根因
+- `AutoBS/Modules/RotationGenerator.cs`：`wireless360 = Config.Instance.Wireless360`（默认 **true**）。
+- `Rotate()` 中 `if (!wireless360)` 才做摆幅 clamp（LimitRotations）。Wireless360=true 时跳过 clamp → 旋转事件无限制累积 → 90° 模式也转成 360°。
+- 注释写明 Wireless360 "only for 360 not 90"，但代码未区分两种模式。
+
+### 修复
+- `RotationGenerator.Generate()`：提前声明 `wireless360`，在 90° 分支强制 `wireless360 = false`（始终 clamp）；
+  第 274 行对 360 模式的 `wireless360 = Config.Instance.Wireless360` 改为仅在非 90° 模式赋值，避免覆盖。
+- 修改文件：`AutoBS/Modules/RotationGenerator.cs`
+- 构建 + 部署：Release 0 错误；`AutoBS.dll` 复制到 F 盘实例（2026/8/20 09:47）。
+
+---
+
+## [FIX] 官方 OST 歌单在列表里看不到 2026-08-20
+
+### 现象
+用户在 RPM 歌单选择界面滚动不到"官方歌曲 (OST)"项。日志显示 OST 实际成功创建（335 首）并加入 `_playlists`，UI 也遍历全部渲染。
+
+### 根因
+- `PlaylistManager.LoadPlaylists()`：先 `foreach` 加载全部真实歌单（本机 48 个），最后才 `AddOfficialLevelsPlaylist()` + `AddCustomLevelsPlaylist()`。
+- 结果 OST 排在 **第 50 项（最后）**，被几百个真实歌单淹没，用户误以为"看不到"。
+
+### 修复
+- 调整为：在 `foreach` **之前**先 `AddOfficialLevelsPlaylist()` + `AddCustomLevelsPlaylist()`，使 OST 置顶（第 1 项）、自定义歌曲第 2 项、真实歌单在后。
+- 删除 `foreach` 之后重复的两次虚拟歌单添加。
+- 修改文件：`RandomPlaylistMod/Managers/PlaylistManager.cs`
+- 构建 + 部署：Release 0 错误（仅 1 过时 API 警告）；`RandomPlaylistMod.dll` 复制到 F 盘实例（2026/8/20 09:49）。
+
+### 验证待办
+- 实机确认：选 90° 播放整曲不再累积成 360°；歌单列表顶部出现"🎼 官方歌曲 (OST)"项。
+- 确认后 commit 两个仓库并补丁 Release（AutoBS bump v1.1.3 / RPM bump v2.3.2）。
+
+---
+
+## [FIX+RELEASE] 总结页面不可见 + 无法回退主界面 2026-08-21
+
+### 现象（用户报告，已实机验证通过）
+结束一个 session 之后，总结页面看不到，也完全无法操作回退主界面。
+
+### 根因
+- 一个 session 结束后，RandomPlaylistMod 的 FlowCoordinator（RPM FC）在游戏切回菜单时**已被游戏 deactivate**（不在层级里）。
+- 旧的 `SessionSummaryView.OnSessionEndedWithRecord` 直接在其上 `ShowSummaryView` → 本质是在一个未激活的 FlowCoordinator 层级上 `PresentViewController`，导致页面不可见、层级错乱、无法回退主界面。
+- 叠加问题：`RandomPlaylistFlowCoordinator.DidActivate` 用 `if (addedToHierarchy || _isPresented)` 判断，被重新 present 时会重复 `ProvideInitialViewControllers` 造成层级冲突。
+
+### 修复
+1. `SessionSummaryView.Construct` 额外注入 `MainFlowCoordinator`；
+   `OnSessionEndedWithRecord` 弹出总结前先检查 `_flowCoordinator.isActivated`，
+   若为 false 则先 `_mainFlowCoordinator.PresentFlowCoordinator(_flowCoordinator)` 把 RPM FC 重新挂回层级，
+   再 `ShowSummaryView`，确保总结面板在正确的激活层级上显示且可正常回退。
+2. `RandomPlaylistFlowCoordinator.DidActivate` 改为 `if (addedToHierarchy)`，
+   避免重新 present 时重复 `ProvideInitialViewControllers`。
+3. `PlaylistManager.LoadPlaylists` 中 OST / 自定义歌曲虚拟歌单**置顶**（上一轮修正，本次一并打包进 2.3.3）。
+
+- 修改文件：`RandomPlaylistMod/UI/SessionSummaryView.cs`、`RandomPlaylistMod/UI/RandomPlaylistFlowCoordinator.cs`、`RandomPlaylistMod/Managers/PlaylistManager.cs`
+- 构建 + 部署：Release 0 错误（仅 1 过时 API 警告）；`RandomPlaylistMod.dll` 已复制到 F 盘实例 Plugins（2026/8/21）。
+
+### 发布
+- RPM bump **2.3.3**（manifest 2.3.0 → 2.3.3、csproj Version 2.2.0 → 2.3.3）。
+- commit 到 `local/level-filter-2.2.0` 并 push；GitHub Release `v2.3.3` 附 `RandomPlaylistMod.dll`。
+- 本次 RPM 改动**不涉及 AutoBS**，AutoBS 仓库无需改动。
+
 
 
 
