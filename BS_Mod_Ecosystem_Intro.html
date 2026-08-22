@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Beat Saber 随机连播生态 · RPM × PlaylistManager × AutoBS</title>
+<style>
+  :root {
+    --bg: #0c0e13;
+    --card: #151821;
+    --card-2: #1b1f2a;
+    --c-rpm: #2de2c4;
+    --c-plm: #ffb454;
+    --c-auto: #7c5cff;
+    --text: #e8ebf2;
+    --muted: #98a1b3;
+    --line: #232834;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: radial-gradient(1100px 560px at 85% -8%, rgba(124,92,255,.16), transparent 60%),
+                radial-gradient(900px 500px at -5% 8%, rgba(45,226,196,.12), transparent 55%),
+                radial-gradient(800px 480px at 50% 110%, rgba(255,180,84,.10), transparent 55%),
+                var(--bg);
+    color: var(--text); line-height: 1.65; -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 60px 24px 80px; }
+
+  .hero { text-align: center; padding: 30px 0 18px; }
+  .badge {
+    display: inline-block; font-size: 12.5px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--c-rpm); border: 1px solid rgba(45,226,196,.4); background: rgba(45,226,196,.08);
+    padding: 5px 14px; border-radius: 999px; margin-bottom: 20px;
+  }
+  h1 {
+    font-size: clamp(30px, 5.4vw, 48px); line-height: 1.12; font-weight: 800;
+    background: linear-gradient(100deg, #fff 8%, var(--c-rpm) 45%, var(--c-auto) 85%);
+    -webkit-background-clip: text; background-clip: text; color: transparent; margin-bottom: 16px;
+  }
+  .hero p { color: var(--muted); font-size: 17px; max-width: 660px; margin: 0 auto; }
+
+  /* ecosystem flow */
+  .flow { display: flex; align-items: stretch; justify-content: center; gap: 0; margin: 38px 0 8px; flex-wrap: wrap; }
+  .node {
+    flex: 1 1 200px; max-width: 280px; background: linear-gradient(180deg, var(--card), var(--card-2));
+    border: 1px solid var(--line); border-radius: 16px; padding: 20px; text-align: center;
+  }
+  .node .tag { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; }
+  .node .nm { font-size: 19px; font-weight: 700; margin: 6px 0 8px; }
+  .node .ds { font-size: 13px; color: var(--muted); }
+  .node.rpm { border-color: rgba(45,226,196,.5); }
+  .node.rpm .tag { color: var(--c-rpm); }
+  .node.plm { border-color: rgba(255,180,84,.45); }
+  .node.plm .tag { color: var(--c-plm); }
+  .node.auto { border-color: rgba(124,92,255,.5); }
+  .node.auto .tag { color: var(--c-auto); }
+  .arrow { align-self: center; color: var(--muted); font-size: 22px; padding: 0 10px; }
+
+  section { margin-top: 56px; }
+  .sec-title { font-size: 13.5px; letter-spacing: .14em; text-transform: uppercase; margin-bottom: 14px; }
+  h2 { font-size: 25px; font-weight: 700; margin-bottom: 8px; }
+  .lead { color: var(--muted); font-size: 15.5px; margin-bottom: 22px; }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+  .card {
+    background: linear-gradient(180deg, var(--card), var(--card-2));
+    border: 1px solid var(--line); border-radius: 16px; padding: 22px;
+    border-top: 3px solid var(--accent, var(--line));
+    transition: transform .2s ease, border-color .2s ease;
+  }
+  .card:hover { transform: translateY(-3px); border-color: var(--accent); }
+  .card .ico { font-size: 22px; margin-bottom: 10px; }
+  .card h3 { font-size: 16px; margin-bottom: 6px; }
+  .card p { color: var(--muted); font-size: 14px; }
+
+  .grid.rpm .card { --accent: var(--c-rpm); }
+  .grid.plm .card { --accent: var(--c-plm); }
+  .grid.auto .card { --accent: var(--c-auto); }
+
+  .modhead { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+  .modhead .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .modhead.rpm .dot { background: var(--c-rpm); }
+  .modhead.plm .dot { background: var(--c-plm); }
+  .modhead.auto .dot { background: var(--c-auto); }
+  .modhead .t { font-size: 20px; font-weight: 700; }
+  .modhead .v { font-size: 13px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
+
+  .steps { display: grid; gap: 12px; }
+  .step { display: flex; gap: 16px; align-items: flex-start; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+  .step .n { flex: none; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font-weight: 700; font-size: 14px; background: linear-gradient(135deg, var(--c-rpm), var(--c-auto)); color: #fff; }
+  .step b { color: var(--text); }
+  .step span { color: var(--muted); font-size: 14.5px; }
+
+  .deps { display: flex; flex-wrap: wrap; gap: 10px; }
+  .pill { font-size: 13px; color: var(--text); background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 7px 13px; }
+  .pill b { color: var(--c-rpm); }
+
+  .note { border-left: 3px solid var(--c-rpm); background: var(--card); border-radius: 0 12px 12px 0; padding: 16px 20px; color: var(--muted); font-size: 14.5px; margin-top: 18px; }
+
+  .cta { margin-top: 40px; display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  .btn { text-decoration: none; font-weight: 600; font-size: 15px; padding: 12px 24px; border-radius: 12px; transition: transform .15s ease; }
+  .btn-primary { color: #07120f; background: linear-gradient(100deg, var(--c-rpm), #5fe7ff); }
+  .btn-auto { color: #fff; background: linear-gradient(100deg, var(--c-auto), #9b7dff); }
+  .btn-plm { color: #1a1206; background: linear-gradient(100deg, var(--c-plm), #ffd08a); }
+  .btn:hover { transform: translateY(-2px); }
+
+  footer { margin-top: 70px; text-align: center; color: var(--muted); font-size: 13px; }
+  footer a { color: var(--c-rpm); text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="badge">Beat Saber 1.44.0 · 三件套生态</div>
+    <h1>随机连播 · 智能歌单 · 自动生成</h1>
+    <p>RandomPlaylistMod 负责「连播」，PlaylistManager 负责「歌单」，AutoBS 负责「谱面」。三个模组协同，构成一套完整的 Beat Saber 随机刷歌工作流。</p>
+  </header>
+
+  <!-- Ecosystem flow -->
+  <div class="flow">
+    <div class="node plm">
+      <div class="tag">歌单底座</div>
+      <div class="nm">PlaylistManager</div>
+      <div class="ds">聚合 OST 与自定义歌曲，提供歌单池</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node rpm">
+      <div class="tag">连播主控</div>
+      <div class="nm">RandomPlaylistMod</div>
+      <div class="ds">按时长随机选歌、无缝连播、会话管理</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node auto">
+      <div class="tag">谱面生成</div>
+      <div class="nm">AutoBS</div>
+      <div class="ds">起播前注入 90°/360° 摆动谱面</div>
+    </div>
+  </div>
+
+  <!-- RPM -->
+  <section>
+    <div class="modhead rpm"><span class="dot"></span><span class="t">RandomPlaylistMod</span><span class="v">v2.3.3</span></div>
+    <div class="grid rpm">
+      <div class="card"><div class="ico">⏱️</div><h3>时长连播</h3><p>预设 30 分钟 / 1 小时 / 2 小时或自定义 1–120 分钟，时间到自动结束。</p></div>
+      <div class="card"><div class="ico">🔀</div><h3>智能随机</h3><p>Fisher-Yates 洗牌，自动预估歌曲数与总时长，不重复不冷场。</p></div>
+      <div class="card"><div class="ico">🎯</div><h3>NPS 筛选</h3><p>按 Notes Per Second 过滤，体感对应 Hard / Expert 难度。</p></div>
+      <div class="card"><div class="ico">📜</div><h3>多歌单池</h3><p>勾选多个 PlaylistManager 歌单，含 OST 与自定义歌曲虚拟歌单。</p></div>
+      <div class="card"><div class="ico">▶️</div><h3>无缝切换</h3><p>一曲结束自动切下一首；加载失败智能跳过，会话不中断。</p></div>
+      <div class="card"><div class="ico">🧩</div><h3>联动 AutoBS</h3><p>起播前反射调用 AutoBS 注入生成特征，随机歌也能出摆动谱。</p></div>
+    </div>
+  </section>
+
+  <!-- PlaylistManager -->
+  <section>
+    <div class="modhead plm"><span class="dot"></span><span class="t">PlaylistManager（1.44 适配 fork）</span><span class="v">xirain/1.44</span></div>
+    <div class="grid plm">
+      <div class="card"><div class="ico">🎼</div><h3>OST 虚拟歌单</h3><p>内置「官方歌曲 (OST)」虚拟歌单，自动聚合 Beat Saber 内置 OST，无需手动配置。</p></div>
+      <div class="card"><div class="ico">🎮</div><h3>自定义歌曲池</h3><p>「所有自定义歌曲」虚拟歌单，自动聚合已安装的全部自定义关卡。</p></div>
+      <div class="card"><div class="ico">🛠️</div><h3>1.44 适配修复</h3><p>修复黑屏（IPlatformUser 改为可选注入）、MenuTransitionsHelper 起播签名变更，完美运行于 1.44。</p></div>
+    </div>
+  </section>
+
+  <!-- AutoBS -->
+  <section>
+    <div class="modhead auto"><span class="dot"></span><span class="t">AutoBS（1.44 适配 fork）</span><span class="v">xirain/bs-1.42</span></div>
+    <div class="grid auto">
+      <div class="card"><div class="ico">🌀</div><h3>90° 场景摆动</h3><p>生成左右摆头不转身的 90° 谱面；修复「只转音符不转场景」「慢慢累积成 360°」问题，真正旋转场景。</p></div>
+      <div class="card"><div class="ico">📐</div><h3>45/60/90 摆幅</h3><p>新增摆幅档位：45° 轻摆、60° 中摆、90° 大摆，体感自由调节（RPM 按钮或 AutoBS 设置页均可调）。</p></div>
+      <div class="card"><div class="ico">⚡</div><h3>随机起播也触发</h3><p>RPM 跳过原生选歌 UI，AutoBS 改在加载阶段注入生成特征，随机连播的每一首都能正确生成摆动谱。</p></div>
+    </div>
+  </section>
+
+  <!-- How it works together -->
+  <section>
+    <div class="sec-title">协同流程</div>
+    <h2>一次随机刷歌是怎么跑起来的</h2>
+    <div class="steps" style="margin-top:18px">
+      <div class="step"><div class="n">1</div><div><b>选歌池</b><br><span>PlaylistManager 提供 OST / 自定义 / 自建歌单，RPM 勾选组合成歌曲池。</span></div></div>
+      <div class="step"><div class="n">2</div><div><b>排随机</b><br><span>RPM 按时长与 NPS 筛选，Fisher-Yates 排出连播队列。</span></div></div>
+      <div class="step"><div class="n">3</div><div><b>注入谱面</b><br><span>若选 45/60/90° 模式，RPM 起播前反射调用 AutoBS 把生成特征注入当前歌，确保摆动谱生效。</span></div></div>
+      <div class="step"><div class="n">4</div><div><b>无缝连播</b><br><span>歌曲结束自动切下一首，AutoBS 对每首独立生成；时间到或手动结束即收尾，弹出会话总结。</span></div></div>
+    </div>
+  </section>
+
+  <!-- Install -->
+  <section>
+    <div class="sec-title">安装</div>
+    <h2>三个都装上，才算完整</h2>
+    <div class="deps" style="margin-top:18px">
+      <span class="pill">BSIPA <b>4.1+</b></span>
+      <span class="pill">SongCore <b>3.9+</b></span>
+      <span class="pill">SiraUtil <b>3.0+</b></span>
+      <span class="pill">BSML <b>1.6+</b></span>
+      <span class="pill">SongDetailsCache</span>
+      <span class="pill">PlaylistManager <b>1.44 fork</b></span>
+      <span class="pill">AutoBS <b>bs-1.42 fork</b></span>
+    </div>
+    <div class="note">
+      将各仓库的 DLL 放入 Beat Saber 实例 <code>Plugins/</code> 目录（注意：插件不要额外部署 bare <code>.manifest</code>，元数据由 DLL 内的 <code>[Plugin]</code> 类提供）。本生态针对 <b>Beat Saber 1.44.0</b> 开发与测试（环境：Pico 4 Ultra 串流）。
+    </div>
+  </section>
+
+  <div class="cta">
+    <a class="btn btn-primary" href="https://github.com/xirain/RandomPlaylistMod/releases">RandomPlaylistMod</a>
+    <a class="btn btn-plm" href="https://github.com/xirain/PlaylistManager/tree/1.44">PlaylistManager (1.44 fork)</a>
+    <a class="btn btn-auto" href="https://github.com/xirain/AutoBS/tree/bs-1.42">AutoBS (bs-1.42 fork)</a>
+  </div>
+
+  <footer>
+    RandomPlaylistMod · PlaylistManager(1.44 fork) · AutoBS(bs-1.42 fork) · MIT License
+  </footer>
+
+</div>
+</body>
+</html>
