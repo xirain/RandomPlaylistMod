@@ -137,15 +137,23 @@ namespace RandomPlaylistMod.UI
             // 自动弹出总结面板。
             // 注意：session 结束时 RPM 的 FlowCoordinator 很可能已被游戏 deactivate（不在层级里），
             // 此时直接在它上面 PresentViewController 会失败/层级错乱（页面看不到且无法回退）。
-            // 因此先确保 RPM FlowCoordinator 已重新呈现到 MainFlowCoordinator 层级，再 show summary。
+            // 分两种情况：
+            // 1) FC 仍激活（如菜单中自然结束）：先确保其已呈现，再直接 show summary。
+            // 2) FC 未激活（如游戏关卡中途按 B 结束）：此时主菜单 UI 的 GameObject 还是 inactive 的，
+            //    立即 PresentFlowCoordinator 会让 ProvideInitialViewControllers 在 inactive 对象上
+            //    启动协程失败（Coroutine couldn't be started... inactive），导致层级错乱、无法返回主界面。
+            //    因此交给常驻的 SummaryPresenter，等游戏真正切回主菜单、FC 重新激活后再呈现并显示总结。
             try
             {
-                if (!_flowCoordinator.isActivated)
+                if (_flowCoordinator.isActivated)
                 {
-                    Plugin.Log.Info("SessionSummaryView: RPM FlowCoordinator not active at session end, re-presenting it...");
-                    _mainFlowCoordinator.PresentFlowCoordinator(_flowCoordinator);
+                    _flowCoordinator.ShowSummaryView(this);
                 }
-                _flowCoordinator.ShowSummaryView(this);
+                else
+                {
+                    Plugin.Log.Info("SessionSummaryView: RPM FlowCoordinator not active at session end, deferring to SummaryPresenter...");
+                    SummaryPresenter.Instance.ShowSummaryWhenReady(_flowCoordinator, this, _mainFlowCoordinator);
+                }
             }
             catch (Exception ex)
             {

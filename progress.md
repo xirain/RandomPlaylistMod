@@ -1144,6 +1144,47 @@ MSBuild AutoBS/AutoBS.csproj /p:BeatSaberDir="F:\paly\BSManager\BSInstances\1.44
 - commit 到 `local/level-filter-2.2.0` 并 push；GitHub Release `v2.3.3` 附 `RandomPlaylistMod.dll`。
 - 本次 RPM 改动**不涉及 AutoBS**，AutoBS 仓库无需改动。
 
+---
+
+## [FIX] 关卡中途结束 session 后无法返回主界面（2026-08-25）
+
+### 现象（用户报告）
+「中间中断之后」—— 在**游戏关卡进行中**长按 B 结束 session，结束后总结页面不可见/无法操作回退主界面，与 2.3.3 修复的「正常结束」场景同症状但**触发时机不同**。
+
+### 日志实证（2026-08-24 09:40:31.log）
+```
+09:48:10 B long-press -> exit session            ← 关卡中途按 B
+09:48:10 SessionSummaryView: RPM FC not active, re-presenting it...
+09:48:10 RandomPlaylistFlowCoordinator: DidActivate addedToHierarchy=True
+09:48:10 [ERROR] Coroutine couldn't be started because 'RandomPlaylistUI' is inactive! ×2
+09:48:10 Summary view presented
+09:48:11 Level completed with rank E              ← 关卡此时才结束！
+```
+
+### 根因
+用户在**关卡中途**结束 session 时，游戏仍在关卡场景，主菜单 UI（`RandomPlaylistUI`）的 GameObject 仍是 **inactive** 状态。
+2.3.3 的 `OnSessionEndedWithRecord` 无条件立即 `PresentFlowCoordinator` → `ProvideInitialViewControllers` 需要在 inactive 的 GameObject 上启动协程 → 失败 → RPM FC 层级错乱 → 无法返回主界面。
+（关卡中 `SessionSummaryView` 自身也是 inactive，无法在其上直接 `StartCoroutine` 延迟。）
+
+### 修复
+1. 新增 `RandomPlaylistMod/UI/SummaryPresenter.cs`：
+   常驻 `DontDestroyOnLoad` 的 MonoBehaviour 协程宿主，提供 `ShowSummaryWhenReady(fc, view, main)`，
+   轮询等待 FC 重新激活（`activeInHierarchy && isActivated`，即游戏真正切回主菜单）后再
+   `PresentFlowCoordinator`（如需要）并 `ShowSummaryView`；30s 超时兜底。
+2. `SessionSummaryView.OnSessionEndedWithRecord` 分支处理：
+   - FC 已激活（菜单中自然结束）→ 直接 `ShowSummaryView`；
+   - FC 未激活（关卡中途结束）→ 交给 `SummaryPresenter` 延迟到主菜单激活后呈现。
+3. 协程内规避 C# CS1626（不能在含 catch 的 try 块中 yield），改用异常变量先收集后处理。
+
+- 修改文件：`RandomPlaylistMod/UI/SummaryPresenter.cs`（新增）、`RandomPlaylistMod/UI/SessionSummaryView.cs`
+- 构建 + 部署：Release 0 错误 0 警告；`RandomPlaylistMod.dll` 已复制到 F 盘实例 Plugins（2026/8/25，153600 bytes）。
+
+### 验证结果（2026-08-26 用户确认 ✅）
+- 实机验证：关卡中途按 B 结束 session → 能正常回到总结页面，且可操作返回主界面。**通过**。
+- 已 commit 并补丁 Release：RPM bump **v2.3.4**（manifest 2.3.3 → 2.3.4、csproj Version 2.3.3 → 2.3.4）。
+- commit 到 `local/level-filter-2.2.0` 并 push；GitHub Release `v2.3.4` 附 `RandomPlaylistMod.dll`。
+- 本次 RPM 改动**不涉及 AutoBS**，AutoBS 仓库无需改动。
+
 
 
 
